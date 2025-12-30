@@ -1,12 +1,13 @@
 import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Users, UserPlus, Upload, Download, Search, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { Users, UserPlus, Upload, Download, Search, CheckCircle, XCircle, Loader2, Pencil, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
@@ -26,6 +27,18 @@ interface UserFormData {
   native_village?: string;
 }
 
+interface UserProfile {
+  id: string;
+  name: string;
+  email: string | null;
+  mobile: string;
+  gotra: string | null;
+  father_name: string | null;
+  native_village: string | null;
+  verification_status: string | null;
+  created_at: string;
+}
+
 export function UserManager() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -34,6 +47,8 @@ export function UserManager() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showBulkDialog, setShowBulkDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
   const [formData, setFormData] = useState<UserFormData>({
     name: '',
     email: '',
@@ -107,6 +122,67 @@ export function UserManager() {
     },
   });
 
+  // Update user mutation
+  const updateUser = useMutation({
+    mutationFn: async ({ userId, userData }: { userId: string; userData: Partial<UserFormData> }) => {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          name: userData.name,
+          mobile: userData.mobile,
+          gotra: userData.gotra || null,
+          father_name: userData.father_name || null,
+          native_village: userData.native_village || null,
+        })
+        .eq('id', userId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-all-users'] });
+      setShowEditDialog(false);
+      setEditingUser(null);
+      toast({
+        title: 'User Updated',
+        description: 'User profile has been updated successfully.',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Delete user mutation (deletes profile, auth user remains but profile is removed)
+  const deleteUser = useMutation({
+    mutationFn: async (userId: string) => {
+      // Delete from profiles table
+      const { error } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', userId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-all-users'] });
+      toast({
+        title: 'User Deleted',
+        description: 'User profile has been deleted.',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
   // Bulk create users mutation
   const bulkCreateUsers = useMutation({
     mutationFn: async (usersData: UserFormData[]) => {
@@ -168,6 +244,19 @@ export function UserManager() {
       });
     },
   });
+
+  const handleEditUser = (user: UserProfile) => {
+    setEditingUser(user);
+    setFormData({
+      name: user.name,
+      email: user.email || '',
+      mobile: user.mobile,
+      gotra: user.gotra || '',
+      father_name: user.father_name || '',
+      native_village: user.native_village || '',
+    });
+    setShowEditDialog(true);
+  };
 
   const handleDownloadSampleCSV = () => {
     const blob = new Blob([SAMPLE_CSV_CONTENT], { type: 'text/csv' });
@@ -500,11 +589,12 @@ export function UserManager() {
             <div className="space-y-2">
               {/* Header */}
               <div className="hidden md:grid grid-cols-12 gap-4 px-4 py-2 bg-muted/50 rounded-lg text-sm font-medium text-muted-foreground">
-                <div className="col-span-3">Name</div>
+                <div className="col-span-2">Name</div>
                 <div className="col-span-3">Email</div>
                 <div className="col-span-2">Mobile</div>
                 <div className="col-span-2">Status</div>
                 <div className="col-span-2">Joined</div>
+                <div className="col-span-1">Actions</div>
               </div>
 
               {/* Rows */}
@@ -516,7 +606,7 @@ export function UserManager() {
                   transition={{ delay: index * 0.02 }}
                   className="grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 px-4 py-3 rounded-lg border border-border hover:bg-muted/30 transition-colors"
                 >
-                  <div className="col-span-3 font-medium">{user.name}</div>
+                  <div className="col-span-2 font-medium truncate">{user.name}</div>
                   <div className="col-span-3 text-sm text-muted-foreground truncate">{user.email || '-'}</div>
                   <div className="col-span-2 text-sm text-muted-foreground">{user.mobile}</div>
                   <div className="col-span-2">
@@ -534,12 +624,135 @@ export function UserManager() {
                   <div className="col-span-2 text-sm text-muted-foreground">
                     {format(new Date(user.created_at), 'MMM d, yyyy')}
                   </div>
+                  <div className="col-span-1 flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => handleEditUser(user as UserProfile)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete User</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete {user.name}'s profile? This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => deleteUser.mutate(user.id)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
                 </motion.div>
               ))}
             </div>
           )}
         </CardContent>
       </Card>
+
+      {/* Edit User Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={(open) => {
+        setShowEditDialog(open);
+        if (!open) {
+          setEditingUser(null);
+          setFormData({ name: '', email: '', mobile: '', gotra: '', father_name: '', native_village: '' });
+        }
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit User</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div className="space-y-2">
+              <Label>Name *</Label>
+              <Input
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="Full name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input
+                type="email"
+                value={formData.email}
+                disabled
+                className="bg-muted"
+              />
+              <p className="text-xs text-muted-foreground">Email cannot be changed</p>
+            </div>
+            <div className="space-y-2">
+              <Label>Mobile *</Label>
+              <Input
+                value={formData.mobile}
+                onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
+                placeholder="9876543210"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Gotra</Label>
+              <Input
+                value={formData.gotra}
+                onChange={(e) => setFormData({ ...formData, gotra: e.target.value })}
+                placeholder="Gotra"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Father's Name</Label>
+              <Input
+                value={formData.father_name}
+                onChange={(e) => setFormData({ ...formData, father_name: e.target.value })}
+                placeholder="Father's name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Native Village</Label>
+              <Input
+                value={formData.native_village}
+                onChange={(e) => setFormData({ ...formData, native_village: e.target.value })}
+                placeholder="Native village"
+              />
+            </div>
+            <Button
+              className="w-full"
+              onClick={() => {
+                if (editingUser) {
+                  updateUser.mutate({ userId: editingUser.id, userData: formData });
+                }
+              }}
+              disabled={!formData.name || !formData.mobile || updateUser.isPending}
+            >
+              {updateUser.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Save Changes'
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
