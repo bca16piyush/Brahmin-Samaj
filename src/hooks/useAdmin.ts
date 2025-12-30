@@ -5,6 +5,7 @@ import type { Database } from '@/integrations/supabase/types';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
 type Pandit = Database['public']['Tables']['pandits']['Row'];
+type PanditExpertiseOption = Database['public']['Tables']['pandit_expertise_options']['Row'];
 type InKindDonation = Database['public']['Tables']['in_kind_donations']['Row'];
 type News = Database['public']['Tables']['news']['Row'];
 type Event = Database['public']['Tables']['events']['Row'];
@@ -121,6 +122,81 @@ export function useRejectVerification() {
       toast({
         title: 'User Rejected',
         description: 'The verification request has been rejected.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+// Pandit Expertise Options
+export function usePanditExpertiseOptions() {
+  return useQuery({
+    queryKey: ['pandit-expertise-options'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('pandit_expertise_options')
+        .select('*')
+        .order('name', { ascending: true });
+      
+      if (error) throw error;
+      return data as PanditExpertiseOption[];
+    },
+  });
+}
+
+export function useCreateExpertiseOption() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (name: string) => {
+      const { error } = await supabase
+        .from('pandit_expertise_options')
+        .insert({ name });
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pandit-expertise-options'] });
+      toast({
+        title: 'Expertise Added',
+        description: 'The expertise option has been added successfully.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+export function useDeleteExpertiseOption() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('pandit_expertise_options')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pandit-expertise-options'] });
+      toast({
+        title: 'Expertise Removed',
+        description: 'The expertise option has been removed.',
       });
     },
     onError: (error) => {
