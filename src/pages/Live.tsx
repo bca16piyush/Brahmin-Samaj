@@ -99,7 +99,7 @@ export default function Live() {
               ) : isLive && isVerified && liveEvent?.youtube_live_url ? (
                 <>
                   <iframe
-                    src={liveEvent.youtube_live_url}
+                    src={liveEvent.youtube_live_url.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
                     className="w-full h-full"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen
