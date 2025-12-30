@@ -1,20 +1,66 @@
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Package, Check, Clock, Phone, MapPin, Home, Gift, CheckCircle } from 'lucide-react';
+import { Package, Check, Clock, Phone, MapPin, Home, Gift, CheckCircle, BarChart3 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useInKindDonations, useUpdateDonationStatus } from '@/hooks/useAdmin';
 import { format } from 'date-fns';
 
+function ItemSummary({ donations }: { donations: any[] }) {
+  const itemSummary = useMemo(() => {
+    const summary: Record<string, { pledged: number; received: number; quantities: string[] }> = {};
+    
+    donations.forEach((d) => {
+      if (!summary[d.item_type]) {
+        summary[d.item_type] = { pledged: 0, received: 0, quantities: [] };
+      }
+      if (d.status === 'pledged') {
+        summary[d.item_type].pledged += 1;
+      } else if (d.status === 'received') {
+        summary[d.item_type].received += 1;
+      }
+      summary[d.item_type].quantities.push(d.quantity);
+    });
+    
+    return summary;
+  }, [donations]);
+
+  if (Object.keys(itemSummary).length === 0) return null;
+
+  return (
+    <Card className="border-border shadow-temple mb-6">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base font-heading flex items-center gap-2">
+          <BarChart3 className="w-4 h-4" />
+          Items Summary
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          {Object.entries(itemSummary).map(([item, data]) => (
+            <div key={item} className="p-3 rounded-lg bg-muted/50 border border-border">
+              <p className="font-medium text-sm text-foreground">{item}</p>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-xs px-1.5 py-0.5 rounded bg-gold/10 text-gold">
+                  {data.pledged} pending
+                </span>
+                <span className="text-xs px-1.5 py-0.5 rounded bg-green-500/10 text-green-600">
+                  {data.received} received
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function DonationSummary({ donations }: { donations: any[] }) {
   const totalDonations = donations.length;
   const pledgedCount = donations.filter((d) => d.status === 'pledged').length;
   const receivedCount = donations.filter((d) => d.status === 'received').length;
-  
-  // Count unique item types
-  const itemTypes = [...new Set(donations.map((d) => d.item_type))];
-  
-  // Count unique donors
   const uniqueDonors = [...new Set(donations.map((d) => d.user_id))].length;
 
   return (
@@ -103,6 +149,7 @@ export function DonationTracker() {
   return (
     <div>
       <DonationSummary donations={donations} />
+      <ItemSummary donations={donations} />
       <div className="space-y-4">
         {donations.map((donation: any, index: number) => (
           <motion.div
