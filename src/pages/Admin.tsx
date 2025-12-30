@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Users, UserCheck, Gift, Newspaper, Calendar, User2, LayoutDashboard } from 'lucide-react';
+import { Users, UserCheck, Gift, Newspaper, Calendar, User2, LayoutDashboard, CalendarCheck } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
@@ -11,6 +11,7 @@ import { PanditManager } from '@/components/admin/PanditManager';
 import { DonationTracker } from '@/components/admin/DonationTracker';
 import { NewsPublisher } from '@/components/admin/NewsPublisher';
 import { EventManager } from '@/components/admin/EventManager';
+import { BookingManager } from '@/components/admin/BookingManager';
 
 export default function Admin() {
   const { isAdmin, isLoading, isAuthenticated } = useAuth();
@@ -67,6 +68,10 @@ export default function Admin() {
                 <User2 className="w-4 h-4" />
                 <span className="hidden sm:inline">Pandits</span>
               </TabsTrigger>
+              <TabsTrigger value="bookings" className="flex items-center gap-2">
+                <CalendarCheck className="w-4 h-4" />
+                <span className="hidden sm:inline">Bookings</span>
+              </TabsTrigger>
               <TabsTrigger value="donations" className="flex items-center gap-2">
                 <Gift className="w-4 h-4" />
                 <span className="hidden sm:inline">Donations</span>
@@ -91,6 +96,10 @@ export default function Admin() {
 
             <TabsContent value="pandits">
               <PanditManager />
+            </TabsContent>
+
+            <TabsContent value="bookings">
+              <BookingManager />
             </TabsContent>
 
             <TabsContent value="donations">

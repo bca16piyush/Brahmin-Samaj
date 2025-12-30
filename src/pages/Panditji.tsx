@@ -11,7 +11,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-
+import { PanditDetailModal } from '@/components/pandit/PanditDetailModal';
 interface WeeklyAvailability {
   [key: string]: {
     enabled: boolean;
@@ -111,6 +111,7 @@ export default function Panditji() {
   const [selectedExpertise, setSelectedExpertise] = useState<string>('all');
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [selectedPandit, setSelectedPandit] = useState<any>(null);
 
   const locations = useMemo(() => {
     if (!pandits) return [];
@@ -230,7 +231,8 @@ export default function Panditji() {
                   initial={{ opacity: 0, y: 30 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 * Math.min(index, 5) }}
-                  className="group p-6 rounded-2xl bg-card border border-border hover:border-primary/30 hover:shadow-temple transition-all duration-300"
+                  className="group p-6 rounded-2xl bg-card border border-border hover:border-primary/30 hover:shadow-temple transition-all duration-300 cursor-pointer"
+                  onClick={() => setSelectedPandit(pandit)}
                 >
                   <div className="flex items-start gap-4 mb-4">
                     <div className="relative">
@@ -383,6 +385,13 @@ export default function Panditji() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Pandit Detail Modal */}
+      <PanditDetailModal
+        pandit={selectedPandit}
+        open={!!selectedPandit}
+        onOpenChange={(open) => !open && setSelectedPandit(null)}
+      />
     </Layout>
   );
 }
