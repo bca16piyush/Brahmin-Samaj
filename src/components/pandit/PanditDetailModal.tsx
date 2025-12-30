@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
-import { usePanditReviews, usePanditAverageRating, useCreateReview, useUpdateReview, useDeleteReview, useCreateBooking } from '@/hooks/usePanditBookings';
+import { usePanditReviews, usePanditAverageRating, useUserReviewForPandit, useCreateReview, useUpdateReview, useDeleteReview, useCreateBooking } from '@/hooks/usePanditBookings';
 import { usePanditExpertiseOptions } from '@/hooks/useAdmin';
 
 interface WeeklyAvailability {
@@ -93,6 +93,7 @@ export const PanditDetailModal = React.forwardRef<HTMLDivElement, Props>(functio
   const { isVerified, user } = useAuth();
   const { data: reviews } = usePanditReviews(pandit?.id || '');
   const { data: ratingData } = usePanditAverageRating(pandit?.id || '');
+  const { data: userExistingReview } = useUserReviewForPandit(pandit?.id || '');
   const { data: expertiseOptions } = usePanditExpertiseOptions();
   const createReview = useCreateReview();
   const updateReview = useUpdateReview();
@@ -253,10 +254,14 @@ export const PanditDetailModal = React.forwardRef<HTMLDivElement, Props>(functio
                     size="sm"
                     onClick={() => {
                       setActiveTab('reviews');
-                      setShowReviewForm(true);
+                      if (userExistingReview) {
+                        handleEditReview(userExistingReview);
+                      } else {
+                        setShowReviewForm(true);
+                      }
                     }}
                   >
-                    Write Review
+                    {userExistingReview ? 'Edit Review' : 'Write Review'}
                   </Button>
                 )}
               </div>
@@ -447,10 +452,16 @@ export const PanditDetailModal = React.forwardRef<HTMLDivElement, Props>(functio
               <Button 
                 variant="outline" 
                 className="w-full"
-                onClick={() => setShowReviewForm(true)}
+                onClick={() => {
+                  if (userExistingReview) {
+                    handleEditReview(userExistingReview);
+                  } else {
+                    setShowReviewForm(true);
+                  }
+                }}
               >
                 <Star className="w-4 h-4 mr-2" />
-                Write a Review
+                {userExistingReview ? 'Edit Your Review' : 'Write a Review'}
               </Button>
             )}
             

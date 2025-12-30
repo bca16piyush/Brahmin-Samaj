@@ -23,19 +23,53 @@ export function usePanditReviews(panditId: string) {
   return useQuery({
     queryKey: ['pandit-reviews', panditId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // First get reviews
+      const { data: reviews, error } = await supabase
         .from('pandit_reviews')
-        .select(`
-          *,
-          profiles:user_id (name)
-        `)
+        .select('*')
         .eq('pandit_id', panditId)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      return data;
+      if (!reviews || reviews.length === 0) return [];
+      
+      // Then fetch profiles for reviewers
+      const userIds = [...new Set(reviews.map(r => r.user_id))];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, name')
+        .in('id', userIds);
+      
+      const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+      
+      return reviews.map(r => ({
+        ...r,
+        profiles: profileMap.get(r.user_id) || null,
+      }));
     },
     enabled: !!panditId,
+  });
+}
+
+export function useUserReviewForPandit(panditId: string) {
+  const { user } = useAuth();
+  
+  return useQuery({
+    queryKey: ['user-pandit-review', panditId, user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      
+      const { data, error } = await supabase
+        .from('pandit_reviews')
+        .select('*')
+        .eq('pandit_id', panditId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!panditId && !!user,
   });
 }
 
