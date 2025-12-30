@@ -38,7 +38,8 @@ function useActivePandits() {
 
 function usePanditExpertiseOptions() {
   return useQuery({
-    queryKey: ['pandit-expertise-options'],
+    // NOTE: different queryKey than the admin hook to avoid react-query cache type collisions
+    queryKey: ['pandit-expertise-option-names'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('pandit_expertise_options')
@@ -46,7 +47,7 @@ function usePanditExpertiseOptions() {
         .order('name', { ascending: true });
       
       if (error) throw error;
-      return data.map(e => e.name);
+      return (data ?? []).map((e) => e.name);
     },
   });
 }
@@ -193,9 +194,15 @@ export default function Panditji() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Expertise</SelectItem>
-                {expertiseOptions?.map((exp) => (
-                  <SelectItem key={exp} value={exp}>{exp}</SelectItem>
-                ))}
+                {expertiseOptions?.map((exp: any) => {
+                  const name = typeof exp === 'string' ? exp : exp?.name;
+                  if (!name) return null;
+                  return (
+                    <SelectItem key={name} value={name}>
+                      {name}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
             <Select value={selectedLocation} onValueChange={setSelectedLocation}>
