@@ -298,9 +298,41 @@ export function useUpdatePandit() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-pandits'] });
+      queryClient.invalidateQueries({ queryKey: ['active-pandits'] });
       toast({
         title: 'Pandit Updated',
         description: 'The pandit profile has been updated successfully.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+export function useDeletePandit() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('pandits')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-pandits'] });
+      queryClient.invalidateQueries({ queryKey: ['active-pandits'] });
+      toast({
+        title: 'Pandit Deleted',
+        description: 'The pandit profile has been deleted.',
       });
     },
     onError: (error) => {
