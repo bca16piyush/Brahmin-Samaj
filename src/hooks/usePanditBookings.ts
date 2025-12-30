@@ -83,6 +83,7 @@ export function useCreateReview() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['pandit-reviews', variables.pandit_id] });
       queryClient.invalidateQueries({ queryKey: ['pandit-avg-rating', variables.pandit_id] });
+      queryClient.invalidateQueries({ queryKey: ['pandit-ratings-all'] });
       toast({
         title: 'Review Submitted',
         description: 'Thank you for your feedback!',
@@ -102,6 +103,72 @@ export function useCreateReview() {
           variant: 'destructive',
         });
       }
+    },
+  });
+}
+
+export function useUpdateReview() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ id, pandit_id, rating, review_text, ceremony_type }: { id: string; pandit_id: string; rating: number; review_text?: string; ceremony_type?: string }) => {
+      const { error } = await supabase
+        .from('pandit_reviews')
+        .update({ rating, review_text, ceremony_type })
+        .eq('id', id);
+      
+      if (error) throw error;
+      return { pandit_id };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['pandit-reviews', data.pandit_id] });
+      queryClient.invalidateQueries({ queryKey: ['pandit-avg-rating', data.pandit_id] });
+      queryClient.invalidateQueries({ queryKey: ['pandit-ratings-all'] });
+      toast({
+        title: 'Review Updated',
+        description: 'Your review has been updated.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+export function useDeleteReview() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ id, pandit_id }: { id: string; pandit_id: string }) => {
+      const { error } = await supabase
+        .from('pandit_reviews')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+      return { pandit_id };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['pandit-reviews', data.pandit_id] });
+      queryClient.invalidateQueries({ queryKey: ['pandit-avg-rating', data.pandit_id] });
+      queryClient.invalidateQueries({ queryKey: ['pandit-ratings-all'] });
+      toast({
+        title: 'Review Deleted',
+        description: 'Your review has been removed.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
     },
   });
 }
