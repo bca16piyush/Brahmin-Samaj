@@ -16,10 +16,10 @@ import { usePanditExpertiseOptions } from '@/hooks/useAdmin';
 
 interface WeeklyAvailability {
   [key: string]: {
-    enabled: boolean;
-    start: string;
-    end: string;
-  };
+    enabled?: boolean;
+    start?: string;
+    end?: string;
+  } | undefined;
 }
 
 interface Pandit {
@@ -66,7 +66,7 @@ function calculateExperience(startDate: string | null): string {
 
 function formatSchedule(weeklyAvailability: WeeklyAvailability | null): { day: string; time: string }[] {
   if (!weeklyAvailability || typeof weeklyAvailability !== 'object') return [];
-  
+
   const dayNames: { [key: string]: string } = {
     monday: 'Monday',
     tuesday: 'Tuesday',
@@ -76,12 +76,12 @@ function formatSchedule(weeklyAvailability: WeeklyAvailability | null): { day: s
     saturday: 'Saturday',
     sunday: 'Sunday',
   };
-  
+
   return Object.entries(weeklyAvailability)
     .filter(([_, avail]) => avail?.enabled)
     .map(([day, avail]) => ({
-      day: dayNames[day],
-      time: `${avail.start} - ${avail.end}`,
+      day: dayNames[day] || day,
+      time: `${avail?.start || '09:00'} - ${avail?.end || '18:00'}`,
     }));
 }
 
