@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { motion } from 'framer-motion';
-import { Calendar, MapPin, Clock, User, AlertCircle, CheckCircle, XCircle, X, CalendarCheck, Ticket, Video } from 'lucide-react';
+import { Calendar, MapPin, Clock, User, AlertCircle, CheckCircle, XCircle, X, CalendarCheck, Ticket, Video, Package, Gift } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserBookings } from '@/hooks/usePanditBookings';
 import { useMyEventRegistrations, useCancelRegistration } from '@/hooks/useEventRegistrations';
+import { useMyDonations } from '@/hooks/useUserDonations';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
@@ -22,12 +23,15 @@ const statusConfig: Record<string, { color: string; icon: typeof CheckCircle; la
   completed: { color: 'bg-blue-500/10 text-blue-600 border-blue-500/30', icon: CheckCircle, label: 'Completed' },
   cancelled: { color: 'bg-red-500/10 text-red-600 border-red-500/30', icon: XCircle, label: 'Cancelled' },
   registered: { color: 'bg-green-500/10 text-green-600 border-green-500/30', icon: CheckCircle, label: 'Registered' },
+  pledged: { color: 'bg-gold/10 text-gold border-gold/30', icon: AlertCircle, label: 'Pledged' },
+  received: { color: 'bg-green-500/10 text-green-600 border-green-500/30', icon: CheckCircle, label: 'Received' },
 };
 
 export default function MyBookings() {
   const { isAuthenticated, isVerified, isLoading: authLoading } = useAuth();
   const { data: bookings, isLoading: bookingsLoading } = useUserBookings();
   const { data: eventRegistrations, isLoading: registrationsLoading } = useMyEventRegistrations();
+  const { data: donations, isLoading: donationsLoading } = useMyDonations();
   const cancelRegistration = useCancelRegistration();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -112,7 +116,7 @@ export default function MyBookings() {
     );
   }
 
-  const isLoading = bookingsLoading || registrationsLoading;
+  const isLoading = bookingsLoading || registrationsLoading || donationsLoading;
 
   const upcomingBookings = bookings?.filter(b => 
     b.status !== 'cancelled' && b.status !== 'completed' && new Date(b.booking_date) >= new Date()
@@ -132,8 +136,12 @@ export default function MyBookings() {
     return event && new Date(event.event_date) < new Date();
   }) || [];
 
+  const pendingDonations = donations?.filter(d => d.status === 'pledged') || [];
+  const receivedDonations = donations?.filter(d => d.status === 'received') || [];
+
   const hasBookings = (bookings?.length || 0) > 0;
   const hasEventRegs = (eventRegistrations?.length || 0) > 0;
+  const hasDonations = (donations?.length || 0) > 0;
 
   return (
     <Layout>
@@ -162,12 +170,12 @@ export default function MyBookings() {
             <div className="flex items-center justify-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             </div>
-          ) : !hasBookings && !hasEventRegs ? (
+          ) : !hasBookings && !hasEventRegs && !hasDonations ? (
             <div className="text-center py-12">
               <CalendarCheck className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
               <h2 className="font-heading text-xl font-semibold mb-2">No Bookings Yet</h2>
               <p className="text-muted-foreground mb-6">
-                You haven't made any bookings or event registrations yet.
+                You haven't made any bookings, event registrations, or donations yet.
               </p>
               <div className="flex flex-wrap justify-center gap-4">
                 <Link to="/panditji">
@@ -176,20 +184,28 @@ export default function MyBookings() {
                 <Link to="/events">
                   <Button variant="outline">Browse Events</Button>
                 </Link>
+                <Link to="/donations">
+                  <Button variant="outline">Make a Donation</Button>
+                </Link>
               </div>
             </div>
           ) : (
             <Tabs defaultValue="bookings" className="space-y-6">
-              <TabsList className="grid w-full max-w-md mx-auto grid-cols-2">
+              <TabsList className="grid w-full max-w-2xl mx-auto grid-cols-3">
                 <TabsTrigger value="bookings" className="flex items-center gap-2">
                   <User className="w-4 h-4" />
-                  Pandit Bookings
+                  <span className="hidden sm:inline">Pandit</span> Bookings
                   {hasBookings && <Badge variant="secondary" className="ml-1">{bookings?.length}</Badge>}
                 </TabsTrigger>
                 <TabsTrigger value="events" className="flex items-center gap-2">
                   <Ticket className="w-4 h-4" />
-                  Event Registrations
+                  <span className="hidden sm:inline">Event</span> Registrations
                   {hasEventRegs && <Badge variant="secondary" className="ml-1">{eventRegistrations?.length}</Badge>}
+                </TabsTrigger>
+                <TabsTrigger value="donations" className="flex items-center gap-2">
+                  <Gift className="w-4 h-4" />
+                  Donations
+                  {hasDonations && <Badge variant="secondary" className="ml-1">{donations?.length}</Badge>}
                 </TabsTrigger>
               </TabsList>
 
@@ -515,6 +531,124 @@ export default function MyBookings() {
                                         </Button>
                                       </Link>
                                     </div>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </TabsContent>
+
+              {/* Donations Tab */}
+              <TabsContent value="donations" className="space-y-8">
+                {!hasDonations ? (
+                  <div className="text-center py-12">
+                    <Gift className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                    <p className="text-muted-foreground mb-4">No donations pledged yet.</p>
+                    <Link to="/donations">
+                      <Button variant="hero">Make a Donation</Button>
+                    </Link>
+                  </div>
+                ) : (
+                  <>
+                    {/* Pending Donations */}
+                    {pendingDonations.length > 0 && (
+                      <div>
+                        <h2 className="font-heading text-xl font-semibold mb-4 flex items-center gap-2">
+                          <Package className="w-5 h-5 text-gold" />
+                          Pledged Donations (Pending)
+                        </h2>
+                        <div className="space-y-4">
+                          {pendingDonations.map((donation: any, index: number) => {
+                            const config = statusConfig[donation.status] || statusConfig.pledged;
+                            const StatusIcon = config.icon;
+
+                            return (
+                              <motion.div
+                                key={donation.id}
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: index * 0.05 }}
+                              >
+                                <Card className="border-border">
+                                  <CardContent className="p-6">
+                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                      <div className="flex items-start gap-4">
+                                        <div className="w-12 h-12 rounded-lg bg-gold/10 flex items-center justify-center">
+                                          <Package className="w-6 h-6 text-gold" />
+                                        </div>
+                                        <div>
+                                          <h3 className="font-heading text-lg font-semibold">
+                                            {donation.item_type}
+                                          </h3>
+                                          <p className="text-primary font-medium">{donation.quantity}</p>
+                                          <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-muted-foreground">
+                                            <div className="flex items-center gap-1">
+                                              <MapPin className="w-4 h-4" />
+                                              {donation.dropoff_location}
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                              <Calendar className="w-4 h-4" />
+                                              Pledged: {format(new Date(donation.created_at), 'MMM d, yyyy')}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <Badge className={config.color}>
+                                        <StatusIcon className="w-3 h-3 mr-1" />
+                                        {config.label}
+                                      </Badge>
+                                    </div>
+                                    {donation.notes && (
+                                      <p className="mt-4 text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
+                                        "{donation.notes}"
+                                      </p>
+                                    )}
+                                  </CardContent>
+                                </Card>
+                              </motion.div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Received Donations */}
+                    {receivedDonations.length > 0 && (
+                      <div>
+                        <h2 className="font-heading text-xl font-semibold mb-4 flex items-center gap-2 text-muted-foreground">
+                          <CheckCircle className="w-5 h-5" />
+                          Received Donations
+                        </h2>
+                        <div className="space-y-4 opacity-75">
+                          {receivedDonations.map((donation: any) => {
+                            const config = statusConfig[donation.status] || statusConfig.received;
+                            const StatusIcon = config.icon;
+
+                            return (
+                              <Card key={donation.id} className="border-border">
+                                <CardContent className="p-6">
+                                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                    <div className="flex items-start gap-4">
+                                      <div className="w-12 h-12 rounded-lg bg-green-500/10 flex items-center justify-center">
+                                        <CheckCircle className="w-6 h-6 text-green-500" />
+                                      </div>
+                                      <div>
+                                        <h3 className="font-medium">{donation.item_type}</h3>
+                                        <p className="text-sm text-muted-foreground">{donation.quantity}</p>
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                          Received: {donation.received_at ? format(new Date(donation.received_at), 'MMM d, yyyy') : 'N/A'}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <Badge className={config.color}>
+                                      <StatusIcon className="w-3 h-3 mr-1" />
+                                      {config.label}
+                                    </Badge>
                                   </div>
                                 </CardContent>
                               </Card>
