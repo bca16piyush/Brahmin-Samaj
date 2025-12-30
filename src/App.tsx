@@ -12,6 +12,7 @@ import Donations from "./pages/Donations";
 import Live from "./pages/Live";
 import Gallery from "./pages/Gallery";
 import Events from "./pages/Events";
+import EventDetail from "./pages/EventDetail";
 import About from "./pages/About";
 import Admin from "./pages/Admin";
 import MyBookings from "./pages/MyBookings";
@@ -35,6 +36,7 @@ const App = () => (
             <Route path="/live" element={<Live />} />
             <Route path="/gallery" element={<Gallery />} />
             <Route path="/events" element={<Events />} />
+            <Route path="/events/:id" element={<EventDetail />} />
             <Route path="/about" element={<About />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/my-bookings" element={<MyBookings />} />
