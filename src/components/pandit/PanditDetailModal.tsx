@@ -96,6 +96,8 @@ export const PanditDetailModal = React.forwardRef<HTMLDivElement, Props>(functio
   const createReview = useCreateReview();
   const createBooking = useCreateBooking();
   
+  const [activeTab, setActiveTab] = useState('book');
+  const [showReviewForm, setShowReviewForm] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewText, setReviewText] = useState('');
   const [reviewCeremony, setReviewCeremony] = useState('');
@@ -122,6 +124,7 @@ export const PanditDetailModal = React.forwardRef<HTMLDivElement, Props>(functio
         setReviewText('');
         setReviewCeremony('');
         setReviewRating(5);
+        setShowReviewForm(false);
       },
     });
   };
@@ -188,10 +191,34 @@ export const PanditDetailModal = React.forwardRef<HTMLDivElement, Props>(functio
               )}
             </div>
             
-            <div className="flex items-center gap-2 mt-2">
-              <StarRating rating={Math.round(ratingData?.average || 0)} />
-              <span className="text-sm font-medium">{ratingData?.average || 0}</span>
-              <span className="text-sm text-muted-foreground">({ratingData?.count || 0} reviews)</span>
+            {/* Rating with See Reviews & Write Review buttons */}
+            <div className="flex flex-wrap items-center gap-3 mt-3">
+              <div className="flex items-center gap-2">
+                <StarRating rating={Math.round(ratingData?.average || 0)} />
+                <span className="text-sm font-medium">{ratingData?.average || 0}</span>
+                <span className="text-sm text-muted-foreground">({ratingData?.count || 0})</span>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setActiveTab('reviews')}
+                >
+                  See Reviews
+                </Button>
+                {user && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      setActiveTab('reviews');
+                      setShowReviewForm(true);
+                    }}
+                  >
+                    Write Review
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -252,7 +279,7 @@ export const PanditDetailModal = React.forwardRef<HTMLDivElement, Props>(functio
         )}
 
         {/* Tabs for Booking & Reviews */}
-        <Tabs defaultValue="book" className="mt-4">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="book">Book Appointment</TabsTrigger>
             <TabsTrigger value="reviews">Reviews ({ratingData?.count || 0})</TabsTrigger>
@@ -336,9 +363,14 @@ export const PanditDetailModal = React.forwardRef<HTMLDivElement, Props>(functio
           
           <TabsContent value="reviews" className="space-y-4 mt-4">
             {/* Write Review - available for any logged-in user */}
-            {user ? (
-              <div className="p-4 border rounded-lg space-y-3">
-                <h4 className="font-medium">Write a Review</h4>
+            {user && showReviewForm && (
+              <div className="p-4 border rounded-lg space-y-3 bg-muted/30">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium">Write a Review</h4>
+                  <Button variant="ghost" size="sm" onClick={() => setShowReviewForm(false)}>
+                    Cancel
+                  </Button>
+                </div>
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-muted-foreground">Your Rating:</span>
                   <StarRating rating={reviewRating} onRate={setReviewRating} interactive />
@@ -368,7 +400,20 @@ export const PanditDetailModal = React.forwardRef<HTMLDivElement, Props>(functio
                   Submit Review
                 </Button>
               </div>
-            ) : (
+            )}
+            
+            {user && !showReviewForm && (
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={() => setShowReviewForm(true)}
+              >
+                <Star className="w-4 h-4 mr-2" />
+                Write a Review
+              </Button>
+            )}
+            
+            {!user && (
               <div className="p-4 border rounded-lg text-center">
                 <p className="text-muted-foreground mb-2">Log in to leave a review</p>
                 <Button variant="outline" size="sm" onClick={() => window.location.href = '/login'}>

@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAuth } from '@/contexts/AuthContext';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -35,6 +36,36 @@ function useActivePandits() {
       
       if (error) throw error;
       return data;
+    },
+  });
+}
+
+function usePanditRatings() {
+  return useQuery({
+    queryKey: ['pandit-ratings-all'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('pandit_reviews')
+        .select('pandit_id, rating');
+      
+      if (error) throw error;
+      
+      // Calculate average rating per pandit
+      const ratings: { [key: string]: { total: number; count: number } } = {};
+      data?.forEach((review) => {
+        if (!ratings[review.pandit_id]) {
+          ratings[review.pandit_id] = { total: 0, count: 0 };
+        }
+        ratings[review.pandit_id].total += review.rating;
+        ratings[review.pandit_id].count += 1;
+      });
+      
+      const averages: { [key: string]: { average: number; count: number } } = {};
+      Object.entries(ratings).forEach(([panditId, { total, count }]) => {
+        averages[panditId] = { average: Math.round((total / count) * 10) / 10, count };
+      });
+      
+      return averages;
     },
   });
 }
@@ -111,29 +142,54 @@ const DAY_ABBREV: { [key: string]: string } = {
   sunday: 'Sun',
 };
 
-function formatAvailabilitySchedule(weeklyAvailability: WeeklyAvailability | null): { day: string; abbrev: string; time: string | null }[] {
-  const schedule: { day: string; abbrev: string; time: string | null }[] = [];
+const DAY_FULL: { [key: string]: string } = {
+  monday: 'Monday',
+  tuesday: 'Tuesday',
+  wednesday: 'Wednesday',
+  thursday: 'Thursday',
+  friday: 'Friday',
+  saturday: 'Saturday',
+  sunday: 'Sunday',
+};
+
+function formatAvailabilitySchedule(weeklyAvailability: WeeklyAvailability | null): { day: string; abbrev: string; fullName: string; start: string | null; end: string | null }[] {
+  const schedule: { day: string; abbrev: string; fullName: string; start: string | null; end: string | null }[] = [];
 
   DAYS_ORDER.forEach((day) => {
     const avail = weeklyAvailability?.[day];
     const abbrev = DAY_ABBREV[day];
+    const fullName = DAY_FULL[day];
 
     if (avail?.enabled) {
       const start = avail.start || DEFAULT_START_TIME;
       const end = avail.end || DEFAULT_END_TIME;
-      schedule.push({ day, abbrev, time: `${start}-${end}` });
+      schedule.push({ day, abbrev, fullName, start, end });
     } else {
-      schedule.push({ day, abbrev, time: null });
+      schedule.push({ day, abbrev, fullName, start: null, end: null });
     }
   });
 
   return schedule;
 }
 
+function StarRating({ rating }: { rating: number }) {
+  return (
+    <div className="flex gap-0.5">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <Star
+          key={star}
+          className={`w-3.5 h-3.5 ${star <= rating ? 'fill-gold text-gold' : 'text-muted-foreground/30'}`}
+        />
+      ))}
+    </div>
+  );
+}
+
 export default function Panditji() {
   const { isVerified } = useAuth();
   const { data: pandits, isLoading } = useActivePandits();
   const { data: expertiseOptions } = usePanditExpertiseOptions();
+  const { data: panditRatings } = usePanditRatings();
   
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedExpertise, setSelectedExpertise] = useState<string>('all');
@@ -258,6 +314,7 @@ export default function Panditji() {
               const available = isCurrentlyAvailable(pandit.weekly_availability as WeeklyAvailability);
               const experience = calculateExperience(pandit.experience_start_date);
               const schedule = formatAvailabilitySchedule(pandit.weekly_availability as WeeklyAvailability);
+              const rating = panditRatings?.[pandit.id];
               
               return (
                 <motion.div
@@ -289,14 +346,23 @@ export default function Panditji() {
                       <h3 className="font-heading text-xl font-semibold text-foreground mb-1">
                         {pandit.name}
                       </h3>
-                      <div className="flex items-center gap-1 text-sm text-muted-foreground mb-2">
+                      <div className="flex items-center gap-1 text-sm text-muted-foreground mb-1">
                         <MapPin className="w-3.5 h-3.5" />
                         {pandit.location || 'Location not set'}
                       </div>
                       {experience && (
-                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-1 text-sm text-muted-foreground mb-1">
                           <Briefcase className="w-3.5 h-3.5" />
                           {experience} experience
+                        </div>
+                      )}
+                      {/* Rating in directory */}
+                      {rating && (
+                        <div className="flex items-center gap-2 mt-1">
+                          <StarRating rating={Math.round(rating.average)} />
+                          <span className="text-xs text-muted-foreground">
+                            {rating.average} ({rating.count})
+                          </span>
                         </div>
                       )}
                     </div>
@@ -316,7 +382,7 @@ export default function Panditji() {
                     ))}
                   </div>
 
-                  {/* Availability Schedule */}
+                  {/* Availability Schedule with Tooltips */}
                   <div className="mb-4">
                     <div className="flex items-center gap-1 text-sm text-muted-foreground mb-2">
                       <Clock className="w-3.5 h-3.5" />
@@ -325,18 +391,33 @@ export default function Panditji() {
                         {available ? '● Available Now' : '● Unavailable'}
                       </span>
                     </div>
-                    <div className="grid grid-cols-7 gap-1 text-xs">
-                      {schedule.map(({ day, abbrev, time }) => (
-                        <div
-                          key={day}
-                          className={`text-center p-1 rounded ${time ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}
-                          title={time ? `${abbrev}: ${time}` : `${abbrev}: Off`}
-                        >
-                          <div className="font-medium">{abbrev}</div>
-                          <div className="truncate">{time ? time.split('-')[0] : '—'}</div>
-                        </div>
-                      ))}
-                    </div>
+                    <TooltipProvider delayDuration={100}>
+                      <div className="grid grid-cols-7 gap-1 text-xs">
+                        {schedule.map(({ day, abbrev, fullName, start, end }) => (
+                          <Tooltip key={day}>
+                            <TooltipTrigger asChild>
+                              <div
+                                className={`text-center p-1.5 rounded cursor-pointer transition-colors ${start ? 'bg-primary/10 text-primary hover:bg-primary/20' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
+                              >
+                                <div className="font-medium">{abbrev}</div>
+                                <div className="truncate text-[10px]">
+                                  {start ? `${start}` : '—'}
+                                </div>
+                                <div className="truncate text-[10px]">
+                                  {start ? `${end}` : ''}
+                                </div>
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-center">
+                              <p className="font-medium">{fullName}</p>
+                              <p className="text-xs">
+                                {start ? `${start} - ${end}` : 'Not Available'}
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        ))}
+                      </div>
+                    </TooltipProvider>
                   </div>
 
                   {/* Contact Section */}
