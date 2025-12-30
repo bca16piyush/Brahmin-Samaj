@@ -99,30 +99,32 @@ function calculateExperience(startDate: string | null): string {
   return `${years}+ years`;
 }
 
-function formatAvailabilitySchedule(weeklyAvailability: WeeklyAvailability | null): string[] {
-  if (!weeklyAvailability || typeof weeklyAvailability !== 'object') return [];
+const DAYS_ORDER = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
 
-  const dayAbbrev: { [key: string]: string } = {
-    monday: 'Mon',
-    tuesday: 'Tue',
-    wednesday: 'Wed',
-    thursday: 'Thu',
-    friday: 'Fri',
-    saturday: 'Sat',
-    sunday: 'Sun',
-  };
+const DAY_ABBREV: { [key: string]: string } = {
+  monday: 'Mon',
+  tuesday: 'Tue',
+  wednesday: 'Wed',
+  thursday: 'Thu',
+  friday: 'Fri',
+  saturday: 'Sat',
+  sunday: 'Sun',
+};
 
-  const schedule: string[] = [];
-  Object.entries(weeklyAvailability).forEach(([day, avail]) => {
-    if (!avail?.enabled) return;
+function formatAvailabilitySchedule(weeklyAvailability: WeeklyAvailability | null): { day: string; abbrev: string; time: string | null }[] {
+  const schedule: { day: string; abbrev: string; time: string | null }[] = [];
 
-    const abbrev = dayAbbrev[day];
-    if (!abbrev) return;
+  DAYS_ORDER.forEach((day) => {
+    const avail = weeklyAvailability?.[day];
+    const abbrev = DAY_ABBREV[day];
 
-    const start = avail.start || DEFAULT_START_TIME;
-    const end = avail.end || DEFAULT_END_TIME;
-
-    schedule.push(`${abbrev}: ${start}-${end}`);
+    if (avail?.enabled) {
+      const start = avail.start || DEFAULT_START_TIME;
+      const end = avail.end || DEFAULT_END_TIME;
+      schedule.push({ day, abbrev, time: `${start}-${end}` });
+    } else {
+      schedule.push({ day, abbrev, time: null });
+    }
   });
 
   return schedule;
@@ -314,15 +316,27 @@ export default function Panditji() {
                     ))}
                   </div>
 
-                  {/* Availability Status */}
-                  <div className="flex items-center justify-between text-sm mb-4">
-                    <div className="flex items-center gap-1 text-muted-foreground">
+                  {/* Availability Schedule */}
+                  <div className="mb-4">
+                    <div className="flex items-center gap-1 text-sm text-muted-foreground mb-2">
                       <Clock className="w-3.5 h-3.5" />
-                      <span>{schedule.length > 0 ? schedule.slice(0, 2).join(', ') : 'Schedule not set'}</span>
+                      <span>Weekly Schedule</span>
+                      <span className={`ml-auto ${available ? 'text-green-600 font-medium' : 'text-muted-foreground'}`}>
+                        {available ? '● Available Now' : '● Unavailable'}
+                      </span>
                     </div>
-                    <span className={available ? 'text-green-600 font-medium' : 'text-muted-foreground'}>
-                      {available ? '● Available Now' : '● Unavailable'}
-                    </span>
+                    <div className="grid grid-cols-7 gap-1 text-xs">
+                      {schedule.map(({ day, abbrev, time }) => (
+                        <div
+                          key={day}
+                          className={`text-center p-1 rounded ${time ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}
+                          title={time ? `${abbrev}: ${time}` : `${abbrev}: Off`}
+                        >
+                          <div className="font-medium">{abbrev}</div>
+                          <div className="truncate">{time ? time.split('-')[0] : '—'}</div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
 
                   {/* Contact Section */}

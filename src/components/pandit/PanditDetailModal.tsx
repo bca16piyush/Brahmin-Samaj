@@ -64,25 +64,28 @@ function calculateExperience(startDate: string | null): string {
   return `${years}+ years`;
 }
 
-function formatSchedule(weeklyAvailability: WeeklyAvailability | null): { day: string; time: string }[] {
-  if (!weeklyAvailability || typeof weeklyAvailability !== 'object') return [];
+const DAYS_ORDER = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
 
-  const dayNames: { [key: string]: string } = {
-    monday: 'Monday',
-    tuesday: 'Tuesday',
-    wednesday: 'Wednesday',
-    thursday: 'Thursday',
-    friday: 'Friday',
-    saturday: 'Saturday',
-    sunday: 'Sunday',
-  };
+const DAY_NAMES: { [key: string]: string } = {
+  monday: 'Monday',
+  tuesday: 'Tuesday',
+  wednesday: 'Wednesday',
+  thursday: 'Thursday',
+  friday: 'Friday',
+  saturday: 'Saturday',
+  sunday: 'Sunday',
+};
 
-  return Object.entries(weeklyAvailability)
-    .filter(([_, avail]) => avail?.enabled)
-    .map(([day, avail]) => ({
-      day: dayNames[day] || day,
-      time: `${avail?.start || '09:00'} - ${avail?.end || '18:00'}`,
-    }));
+function formatSchedule(weeklyAvailability: WeeklyAvailability | null): { day: string; time: string | null }[] {
+  return DAYS_ORDER.map((dayKey) => {
+    const avail = weeklyAvailability?.[dayKey];
+    const dayName = DAY_NAMES[dayKey];
+
+    if (avail?.enabled) {
+      return { day: dayName, time: `${avail.start || '09:00'} - ${avail.end || '18:00'}` };
+    }
+    return { day: dayName, time: null };
+  });
 }
 
 export const PanditDetailModal = React.forwardRef<HTMLDivElement, Props>(function PanditDetailModal({ pandit, open, onOpenChange }, ref) {
@@ -204,23 +207,23 @@ export const PanditDetailModal = React.forwardRef<HTMLDivElement, Props>(functio
           ))}
         </div>
 
-        {/* Schedule */}
-        {schedule.length > 0 && (
-          <div className="p-4 bg-muted/50 rounded-lg">
-            <h4 className="font-medium flex items-center gap-2 mb-2">
-              <Clock className="w-4 h-4" />
-              Availability Schedule
-            </h4>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              {schedule.map(({ day, time }) => (
-                <div key={day} className="flex justify-between">
-                  <span className="text-muted-foreground">{day}</span>
-                  <span className="font-medium">{time}</span>
-                </div>
-              ))}
-            </div>
+        {/* Schedule - show all 7 days */}
+        <div className="p-4 bg-muted/50 rounded-lg">
+          <h4 className="font-medium flex items-center gap-2 mb-2">
+            <Clock className="w-4 h-4" />
+            Availability Schedule
+          </h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+            {schedule.map(({ day, time }) => (
+              <div key={day} className="flex justify-between">
+                <span className="text-muted-foreground">{day}</span>
+                <span className={time ? 'font-medium text-foreground' : 'text-muted-foreground'}>
+                  {time || 'Off'}
+                </span>
+              </div>
+            ))}
           </div>
-        )}
+        </div>
 
         {/* Contact Buttons */}
         {isVerified && (
@@ -332,8 +335,8 @@ export const PanditDetailModal = React.forwardRef<HTMLDivElement, Props>(functio
           </TabsContent>
           
           <TabsContent value="reviews" className="space-y-4 mt-4">
-            {/* Write Review */}
-            {isVerified && (
+            {/* Write Review - available for any logged-in user */}
+            {user ? (
               <div className="p-4 border rounded-lg space-y-3">
                 <h4 className="font-medium">Write a Review</h4>
                 <div className="flex items-center gap-2">
@@ -344,13 +347,18 @@ export const PanditDetailModal = React.forwardRef<HTMLDivElement, Props>(functio
                   value={reviewCeremony}
                   onChange={(e) => setReviewCeremony(e.target.value)}
                   placeholder="Ceremony type (e.g., Wedding, Puja)"
+                  maxLength={100}
                 />
-                <Textarea
-                  value={reviewText}
-                  onChange={(e) => setReviewText(e.target.value)}
-                  placeholder="Share your experience..."
-                  rows={3}
-                />
+                <div className="space-y-1">
+                  <Textarea
+                    value={reviewText}
+                    onChange={(e) => setReviewText(e.target.value.slice(0, 1000))}
+                    placeholder="Share your experience..."
+                    rows={3}
+                    maxLength={1000}
+                  />
+                  <p className="text-xs text-muted-foreground text-right">{reviewText.length}/1000</p>
+                </div>
                 <Button
                   onClick={handleSubmitReview}
                   disabled={createReview.isPending}
@@ -358,6 +366,13 @@ export const PanditDetailModal = React.forwardRef<HTMLDivElement, Props>(functio
                 >
                   <Send className="w-4 h-4 mr-2" />
                   Submit Review
+                </Button>
+              </div>
+            ) : (
+              <div className="p-4 border rounded-lg text-center">
+                <p className="text-muted-foreground mb-2">Log in to leave a review</p>
+                <Button variant="outline" size="sm" onClick={() => window.location.href = '/login'}>
+                  Log In
                 </Button>
               </div>
             )}
