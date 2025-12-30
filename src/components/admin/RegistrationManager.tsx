@@ -357,6 +357,41 @@ export function RegistrationManager() {
         <h2 className="font-heading text-xl font-semibold">Event Registrations</h2>
         {selectedEventId && (
           <div className="flex gap-2">
+            {/* Export CSV Button */}
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => {
+                if (!registrations || registrations.length === 0) return;
+                const headers = ['Name', 'Email', 'Mobile', 'Registered At', 'Attended', 'Reminder Sent'];
+                const rows = registrations.map(reg => {
+                  const profile = reg.profiles as any;
+                  return [
+                    profile?.name || '',
+                    profile?.email || '',
+                    profile?.mobile || '',
+                    format(new Date(reg.registered_at), 'yyyy-MM-dd HH:mm'),
+                    reg.attended ? 'Yes' : 'No',
+                    reg.reminder_sent ? 'Yes' : 'No',
+                  ].join(',');
+                });
+                const csv = [headers.join(','), ...rows].join('\n');
+                const blob = new Blob([csv], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `registrations_${selectedEvent?.title?.replace(/\s+/g, '_') || 'event'}_${format(new Date(), 'yyyy-MM-dd')}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+              }}
+              disabled={!registrations || registrations.length === 0}
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Export CSV
+            </Button>
+            
             {/* Manual Registration Dialog */}
             <Dialog open={showManualDialog} onOpenChange={setShowManualDialog}>
               <DialogTrigger asChild>
