@@ -1,54 +1,34 @@
-import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Play, Calendar, Clock, Bell, Lock, Video } from 'lucide-react';
+import { Play, Calendar, Clock, Lock, Video, ExternalLink } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLiveStream } from '@/hooks/useLiveStream';
 import { Link } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
 
-function CountdownTimer({ targetDate }: { targetDate: string }) {
-  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      const now = new Date().getTime();
-      const target = new Date(targetDate).getTime();
-      const difference = target - now;
-
-      if (difference > 0) {
-        setTimeLeft({
-          days: Math.floor(difference / (1000 * 60 * 60 * 24)),
-          hours: Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
-          minutes: Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60)),
-          seconds: Math.floor((difference % (1000 * 60)) / 1000),
-        });
-      }
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [targetDate]);
-
-  return (
-    <div className="flex gap-4 justify-center">
-      {Object.entries(timeLeft).map(([unit, value]) => (
-        <div key={unit} className="text-center">
-          <div className="w-16 h-16 md:w-20 md:h-20 rounded-xl bg-gradient-saffron flex items-center justify-center mb-2">
-            <span className="text-2xl md:text-3xl font-bold text-primary-foreground">
-              {value.toString().padStart(2, '0')}
-            </span>
-          </div>
-          <span className="text-xs md:text-sm text-muted-foreground capitalize">{unit}</span>
-        </div>
-      ))}
-    </div>
-  );
+function getYouTubeEmbedUrl(url: string | null): string | null {
+  if (!url) return null;
+  
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\s]+)/,
+    /youtube\.com\/live\/([^&\s?]+)/,
+  ];
+  
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match && match[1]) {
+      return `https://www.youtube.com/embed/${match[1]}?autoplay=0`;
+    }
+  }
+  
+  return null;
 }
 
 export default function Live() {
   const { isVerified } = useAuth();
-  const { liveEvent, upcomingEvents, nextEvent, isLoading, isLive } = useLiveStream();
+  const { liveEvents, upcomingEvents, isLoading, isLive } = useLiveStream();
 
   return (
     <Layout>
@@ -66,7 +46,7 @@ export default function Live() {
               }`}
             >
               {isLive && <span className="w-2 h-2 rounded-full bg-destructive animate-pulse" />}
-              {isLive ? 'Live Now' : 'Live Streaming'}
+              {isLive ? `${liveEvents.length} Live Now` : 'Live Streaming'}
             </motion.span>
             <motion.h1
               initial={{ opacity: 0, y: 20 }}
@@ -86,114 +66,164 @@ export default function Live() {
             </motion.p>
           </div>
 
-          {/* Main Player Area */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="max-w-4xl mx-auto mb-12"
-          >
-            <div className="relative aspect-video rounded-2xl overflow-hidden bg-maroon shadow-temple">
-              {isLoading ? (
-                <Skeleton className="w-full h-full" />
-              ) : isLive && isVerified && liveEvent?.youtube_live_url ? (
-                <>
-                  <iframe
-                    src={liveEvent.youtube_live_url.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
-                    className="w-full h-full"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
-                  <div className="absolute top-4 left-4 flex items-center gap-2 px-3 py-1 bg-destructive text-destructive-foreground rounded-full text-sm font-medium">
-                    <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
-                    LIVE
-                  </div>
-                </>
-              ) : (
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8">
-                  {!isVerified ? (
-                    <>
-                      <div className="w-20 h-20 rounded-full bg-primary-foreground/10 flex items-center justify-center mb-6">
-                        <Lock className="w-10 h-10 text-primary-foreground/50" />
-                      </div>
-                      <h2 className="font-heading text-2xl font-bold text-primary-foreground mb-4">
-                        Verified Members Only
-                      </h2>
-                      <p className="text-primary-foreground/70 max-w-md mb-6">
-                        Live streaming is available exclusively for verified community members. Complete your verification to watch.
-                      </p>
-                      <Link to="/register">
-                        <Button variant="hero">
-                          Get Verified
-                        </Button>
-                      </Link>
-                    </>
-                  ) : (
-                    <>
-                      <div className="w-20 h-20 rounded-full bg-primary-foreground/10 flex items-center justify-center mb-6">
-                        <Video className="w-10 h-10 text-primary-foreground/50" />
-                      </div>
-                      <h2 className="font-heading text-2xl font-bold text-primary-foreground mb-4">
-                        No Live Stream
-                      </h2>
-                      <p className="text-primary-foreground/70 max-w-md mb-6">
-                        There's no live event right now. Check the upcoming events below.
-                      </p>
-                    </>
-                  )}
-                </div>
-              )}
+          {/* Loading State */}
+          {isLoading && (
+            <div className="max-w-4xl mx-auto space-y-6">
+              <Skeleton className="w-full aspect-video rounded-2xl" />
+              <Skeleton className="w-full h-24 rounded-xl" />
             </div>
+          )}
 
-            {isLive && liveEvent && (
-              <div className="mt-4 p-4 rounded-xl bg-card border border-border">
-                <h3 className="font-heading text-lg font-semibold">{liveEvent.title}</h3>
-                {liveEvent.description && (
-                  <p className="text-sm text-muted-foreground mt-1">{liveEvent.description}</p>
-                )}
-              </div>
-            )}
-          </motion.div>
-
-          {/* Next Event Countdown */}
-          {nextEvent && !isLive && (
+          {/* Not Verified Message */}
+          {!isLoading && !isVerified && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-              className="max-w-2xl mx-auto mb-16"
+              transition={{ delay: 0.3 }}
+              className="max-w-2xl mx-auto mb-12"
             >
-              <div className="p-8 rounded-2xl bg-card border border-border shadow-temple text-center">
-                <h3 className="font-heading text-xl font-semibold mb-2">Next Event</h3>
-                <p className="text-2xl font-heading font-bold text-gradient-saffron mb-6">
-                  {nextEvent.title}
-                </p>
-                
-                <CountdownTimer targetDate={nextEvent.event_date} />
-                
-                <div className="flex items-center justify-center gap-4 mt-6 text-muted-foreground">
-                  <span className="flex items-center gap-1 text-sm">
-                    <Calendar className="w-4 h-4" />
-                    {new Date(nextEvent.event_date).toLocaleDateString('en-IN', {
-                      weekday: 'long',
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                    })}
-                  </span>
-                  <span className="flex items-center gap-1 text-sm">
-                    <Clock className="w-4 h-4" />
-                    {new Date(nextEvent.event_date).toLocaleTimeString('en-IN', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })} IST
-                  </span>
+              <div className="relative aspect-video rounded-2xl overflow-hidden bg-maroon shadow-temple">
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8">
+                  <div className="w-20 h-20 rounded-full bg-primary-foreground/10 flex items-center justify-center mb-6">
+                    <Lock className="w-10 h-10 text-primary-foreground/50" />
+                  </div>
+                  <h2 className="font-heading text-2xl font-bold text-primary-foreground mb-4">
+                    Verified Members Only
+                  </h2>
+                  <p className="text-primary-foreground/70 max-w-md mb-6">
+                    Live streaming is available exclusively for verified community members. Complete your verification to watch.
+                  </p>
+                  <Link to="/register">
+                    <Button variant="hero">
+                      Get Verified
+                    </Button>
+                  </Link>
                 </div>
+              </div>
+            </motion.div>
+          )}
 
-                <Button variant="golden" className="mt-6">
-                  <Bell className="w-4 h-4 mr-2" />
-                  Get Notified
-                </Button>
+          {/* Live Events Section */}
+          {!isLoading && isVerified && isLive && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="space-y-8 mb-16"
+            >
+              {liveEvents.map((event, index) => {
+                const embedUrl = getYouTubeEmbedUrl(event.youtube_live_url);
+                
+                return (
+                  <div
+                    key={event.id}
+                    className="max-w-4xl mx-auto"
+                  >
+                    {/* Video Player */}
+                    <div className="relative aspect-video rounded-2xl overflow-hidden bg-maroon shadow-temple">
+                      {embedUrl ? (
+                        <>
+                          <iframe
+                            src={embedUrl}
+                            className="w-full h-full"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                          />
+                          <div className="absolute top-4 left-4 flex items-center gap-2 px-3 py-1 bg-destructive text-destructive-foreground rounded-full text-sm font-medium">
+                            <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                            LIVE
+                          </div>
+                        </>
+                      ) : (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8">
+                          <div className="w-20 h-20 rounded-full bg-primary-foreground/10 flex items-center justify-center mb-6">
+                            <Video className="w-10 h-10 text-primary-foreground/50" />
+                          </div>
+                          <h2 className="font-heading text-xl font-bold text-primary-foreground mb-2">
+                            {event.title}
+                          </h2>
+                          <p className="text-primary-foreground/70">
+                            Video stream unavailable
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Event Info */}
+                    <div className="mt-4 p-4 rounded-xl bg-card border border-border">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <h3 className="font-heading text-lg font-semibold">{event.title}</h3>
+                            <Badge variant="destructive" className="animate-pulse">
+                              LIVE
+                            </Badge>
+                          </div>
+                          {event.description && (
+                            <p className="text-sm text-muted-foreground line-clamp-2">
+                              {event.description}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              {new Date(event.event_date).toLocaleDateString('en-IN', {
+                                month: 'short',
+                                day: 'numeric',
+                              })}
+                            </span>
+                            {event.location && (
+                              <span>{event.location}</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          {event.youtube_live_url && (
+                            <a
+                              href={event.youtube_live_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <Button variant="outline" size="sm">
+                                <ExternalLink className="w-4 h-4 mr-1" />
+                                YouTube
+                              </Button>
+                            </a>
+                          )}
+                          <Link to={`/events/${event.id}`}>
+                            <Button variant="secondary" size="sm">
+                              View Details
+                            </Button>
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </motion.div>
+          )}
+
+          {/* No Live Events */}
+          {!isLoading && isVerified && !isLive && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="max-w-2xl mx-auto mb-12"
+            >
+              <div className="relative aspect-video rounded-2xl overflow-hidden bg-maroon shadow-temple">
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8">
+                  <div className="w-20 h-20 rounded-full bg-primary-foreground/10 flex items-center justify-center mb-6">
+                    <Video className="w-10 h-10 text-primary-foreground/50" />
+                  </div>
+                  <h2 className="font-heading text-2xl font-bold text-primary-foreground mb-4">
+                    No Live Streams
+                  </h2>
+                  <p className="text-primary-foreground/70 max-w-md">
+                    There are no live events right now. Check the upcoming events below.
+                  </p>
+                </div>
               </div>
             </motion.div>
           )}

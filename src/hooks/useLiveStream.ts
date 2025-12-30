@@ -13,17 +13,17 @@ interface LiveEvent {
 }
 
 export function useLiveStream() {
-  const { data: liveEvent, isLoading: isLoadingLive } = useQuery({
-    queryKey: ['live-event'],
+  const { data: liveEvents, isLoading: isLoadingLive } = useQuery({
+    queryKey: ['live-events'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('events')
         .select('*')
         .eq('is_live', true)
-        .maybeSingle();
+        .order('event_date', { ascending: false });
 
       if (error) throw error;
-      return data as LiveEvent | null;
+      return data as LiveEvent[];
     },
     refetchInterval: 30000, // Check every 30 seconds
   });
@@ -46,10 +46,10 @@ export function useLiveStream() {
   const nextEvent = upcomingEvents?.[0] || null;
 
   return {
-    liveEvent,
+    liveEvents: liveEvents || [],
     upcomingEvents: upcomingEvents || [],
     nextEvent,
     isLoading: isLoadingLive || isLoadingUpcoming,
-    isLive: !!liveEvent,
+    isLive: (liveEvents?.length || 0) > 0,
   };
 }
