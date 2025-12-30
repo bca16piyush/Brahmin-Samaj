@@ -162,6 +162,8 @@ export type Database = {
       in_kind_donations: {
         Row: {
           created_at: string | null
+          donor_address: string | null
+          donor_phone: string | null
           dropoff_location: string
           id: string
           item_type: string
@@ -173,6 +175,8 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          donor_address?: string | null
+          donor_phone?: string | null
           dropoff_location: string
           id?: string
           item_type: string
@@ -184,6 +188,8 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          donor_address?: string | null
+          donor_phone?: string | null
           dropoff_location?: string
           id?: string
           item_type?: string
