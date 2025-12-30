@@ -154,10 +154,11 @@ export default function Events() {
                             View Details
                           </Button>
                         </Link>
-                        {event.is_live && event.youtube_live_url && (
+                        {event.youtube_live_url && (
                           <Link to={`/events/${event.id}`}>
                             <Button variant="outline" className="bg-transparent border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10">
-                              Watch Live
+                              <Video className="w-4 h-4 mr-2" />
+                              {event.is_live ? 'Watch Live' : 'Watch Video'}
                             </Button>
                           </Link>
                         )}
@@ -217,6 +218,12 @@ export default function Events() {
                                   <Badge variant="destructive" className="animate-pulse">
                                     <Video className="w-3 h-3 mr-1" />
                                     LIVE
+                                  </Badge>
+                                )}
+                                {event.youtube_live_url && !event.is_live && (
+                                  <Badge variant="secondary" className="bg-red-500/20 text-red-600">
+                                    <Video className="w-3 h-3 mr-1" />
+                                    Video
                                   </Badge>
                                 )}
                               </div>
@@ -281,9 +288,17 @@ export default function Events() {
                           </div>
                         )}
                         <div className="p-4">
-                          <Badge variant="secondary" className="mb-2 text-xs">
-                            {format(new Date(event.event_date), 'MMM d, yyyy')}
-                          </Badge>
+                          <div className="flex items-center gap-2 mb-2">
+                            <Badge variant="secondary" className="text-xs">
+                              {format(new Date(event.event_date), 'MMM d, yyyy')}
+                            </Badge>
+                            {event.youtube_live_url && (
+                              <Badge variant="secondary" className="text-xs bg-red-500/20 text-red-600">
+                                <Video className="w-3 h-3 mr-1" />
+                                Recording
+                              </Badge>
+                            )}
+                          </div>
                           <h3 className="font-heading font-semibold line-clamp-1">{event.title}</h3>
                           {event.location && (
                             <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
