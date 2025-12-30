@@ -353,13 +353,14 @@ export function useInKindDonations() {
         .from('in_kind_donations')
         .select(`
           *,
-          profiles:user_id (name, mobile)
+          profiles (name, mobile)
         `)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
       return data;
     },
+    staleTime: 1000 * 60, // Cache for 1 minute
   });
 }
 
