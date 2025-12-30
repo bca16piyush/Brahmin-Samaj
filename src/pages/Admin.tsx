@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Users, UserCheck, Gift, Newspaper, Calendar, User2, LayoutDashboard, CalendarCheck, ClipboardList, UsersRound } from 'lucide-react';
+import { Users, UserCheck, Gift, Newspaper, Calendar, User2, LayoutDashboard, CalendarCheck, ClipboardList, UsersRound, Image } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,6 +14,7 @@ import { EventManager } from '@/components/admin/EventManager';
 import { BookingManager } from '@/components/admin/BookingManager';
 import { RegistrationManager } from '@/components/admin/RegistrationManager';
 import { UserManager } from '@/components/admin/UserManager';
+import { GalleryManager } from '@/components/admin/GalleryManager';
 
 export default function Admin() {
   const { isAdmin, isLoading, isAuthenticated } = useAuth();
@@ -94,6 +95,10 @@ export default function Admin() {
                 <Newspaper className="w-4 h-4" />
                 <span className="hidden sm:inline">News</span>
               </TabsTrigger>
+              <TabsTrigger value="gallery" className="flex items-center gap-2">
+                <Image className="w-4 h-4" />
+                <span className="hidden sm:inline">Gallery</span>
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview">
@@ -130,6 +135,10 @@ export default function Admin() {
 
             <TabsContent value="news">
               <NewsPublisher />
+            </TabsContent>
+
+            <TabsContent value="gallery">
+              <GalleryManager />
             </TabsContent>
           </Tabs>
         </div>
