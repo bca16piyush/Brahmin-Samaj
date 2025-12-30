@@ -14,11 +14,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { PanditDetailModal } from '@/components/pandit/PanditDetailModal';
 interface WeeklyAvailability {
   [key: string]: {
-    enabled: boolean;
-    start: string;
-    end: string;
-  };
+    enabled?: boolean;
+    start?: string;
+    end?: string;
+  } | undefined;
 }
+
+const DEFAULT_START_TIME = '09:00';
+const DEFAULT_END_TIME = '18:00';
 
 function useActivePandits() {
   return useQuery({
@@ -52,27 +55,38 @@ function usePanditExpertiseOptions() {
   });
 }
 
+function timeToMinutes(time: string): number | null {
+  const parts = time.split(':');
+  if (parts.length < 2) return null;
+  const [hours, minutes] = parts.map(Number);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+  return hours * 60 + minutes;
+}
+
 function isCurrentlyAvailable(weeklyAvailability: WeeklyAvailability | null): boolean {
   if (!weeklyAvailability || typeof weeklyAvailability !== 'object') return false;
-  
+
   const now = new Date();
   const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
   const currentDay = days[now.getDay()];
   const dayAvailability = weeklyAvailability[currentDay];
-  
-  if (!dayAvailability?.enabled || !dayAvailability?.start || !dayAvailability?.end) return false;
-  
+
+  if (!dayAvailability?.enabled) return false;
+
   const currentTime = now.getHours() * 60 + now.getMinutes();
-  const startParts = dayAvailability.start.split(':');
-  const endParts = dayAvailability.end.split(':');
-  
-  if (startParts.length < 2 || endParts.length < 2) return false;
-  
-  const [startHour, startMin] = startParts.map(Number);
-  const [endHour, endMin] = endParts.map(Number);
-  const startTime = startHour * 60 + startMin;
-  const endTime = endHour * 60 + endMin;
-  
+  const startStr = dayAvailability.start || DEFAULT_START_TIME;
+  const endStr = dayAvailability.end || DEFAULT_END_TIME;
+
+  const startTime = timeToMinutes(startStr);
+  const endTime = timeToMinutes(endStr);
+
+  if (startTime === null || endTime === null) return false;
+
+  // Overnight ranges (e.g. 22:00-02:00)
+  if (endTime < startTime) {
+    return currentTime >= startTime || currentTime <= endTime;
+  }
+
   return currentTime >= startTime && currentTime <= endTime;
 }
 
@@ -87,7 +101,7 @@ function calculateExperience(startDate: string | null): string {
 
 function formatAvailabilitySchedule(weeklyAvailability: WeeklyAvailability | null): string[] {
   if (!weeklyAvailability || typeof weeklyAvailability !== 'object') return [];
-  
+
   const dayAbbrev: { [key: string]: string } = {
     monday: 'Mon',
     tuesday: 'Tue',
@@ -97,14 +111,20 @@ function formatAvailabilitySchedule(weeklyAvailability: WeeklyAvailability | nul
     saturday: 'Sat',
     sunday: 'Sun',
   };
-  
+
   const schedule: string[] = [];
   Object.entries(weeklyAvailability).forEach(([day, avail]) => {
-    if (avail?.enabled && avail?.start && avail?.end) {
-      schedule.push(`${dayAbbrev[day]}: ${avail.start}-${avail.end}`);
-    }
+    if (!avail?.enabled) return;
+
+    const abbrev = dayAbbrev[day];
+    if (!abbrev) return;
+
+    const start = avail.start || DEFAULT_START_TIME;
+    const end = avail.end || DEFAULT_END_TIME;
+
+    schedule.push(`${abbrev}: ${start}-${end}`);
   });
-  
+
   return schedule;
 }
 

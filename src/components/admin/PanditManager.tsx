@@ -35,6 +35,32 @@ const initialWeeklyAvailability: WeeklyAvailability = {
   sunday: { enabled: false, start: '09:00', end: '18:00' },
 };
 
+function normalizeWeeklyAvailability(value: any): WeeklyAvailability {
+  const raw = value && typeof value === 'object' ? value : {};
+  const normalized: WeeklyAvailability = { ...initialWeeklyAvailability };
+
+  DAYS_OF_WEEK.forEach((day) => {
+    const dayRaw = raw?.[day];
+    if (dayRaw && typeof dayRaw === 'object') {
+      normalized[day] = {
+        ...initialWeeklyAvailability[day],
+        ...dayRaw,
+        enabled: !!dayRaw.enabled,
+        start:
+          typeof dayRaw.start === 'string' && dayRaw.start
+            ? dayRaw.start
+            : initialWeeklyAvailability[day].start,
+        end:
+          typeof dayRaw.end === 'string' && dayRaw.end
+            ? dayRaw.end
+            : initialWeeklyAvailability[day].end,
+      };
+    }
+  });
+
+  return normalized;
+}
+
 interface PanditFormData {
   name: string;
   expertise: string[];
@@ -89,7 +115,6 @@ export function PanditManager() {
   };
 
   const handleOpenEdit = (pandit: any) => {
-    const weeklyAvail = pandit.weekly_availability || initialWeeklyAvailability;
     setFormData({
       name: pandit.name,
       expertise: pandit.expertise || [],
@@ -100,7 +125,7 @@ export function PanditManager() {
       is_active: pandit.is_active,
       photo_url: pandit.photo_url || null,
       experience_start_date: pandit.experience_start_date || null,
-      weekly_availability: typeof weeklyAvail === 'object' ? weeklyAvail : initialWeeklyAvailability,
+      weekly_availability: normalizeWeeklyAvailability(pandit.weekly_availability),
     });
     setEditingId(pandit.id);
     setDialogOpen(true);
@@ -157,15 +182,22 @@ export function PanditManager() {
   };
 
   const updateDayAvailability = (day: string, field: 'enabled' | 'start' | 'end', value: boolean | string) => {
-    setFormData({
-      ...formData,
-      weekly_availability: {
-        ...formData.weekly_availability,
-        [day]: {
-          ...formData.weekly_availability[day],
-          [field]: value,
+    setFormData((prev) => {
+      const currentDay = prev.weekly_availability[day] || initialWeeklyAvailability[day];
+      const nextDay = { ...currentDay, [field]: value } as WeeklyAvailability[string];
+
+      if (field === 'enabled' && value === true) {
+        nextDay.start = nextDay.start || '09:00';
+        nextDay.end = nextDay.end || '18:00';
+      }
+
+      return {
+        ...prev,
+        weekly_availability: {
+          ...prev.weekly_availability,
+          [day]: nextDay,
         },
-      },
+      };
     });
   };
 
@@ -180,7 +212,7 @@ export function PanditManager() {
       is_active: formData.is_active,
       photo_url: formData.photo_url,
       experience_start_date: formData.experience_start_date,
-      weekly_availability: formData.weekly_availability as any,
+      weekly_availability: normalizeWeeklyAvailability(formData.weekly_availability) as any,
       availability: '', // Legacy field
     };
 
