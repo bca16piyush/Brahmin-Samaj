@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Edit, Phone, MapPin, Upload, X, Clock, Briefcase, Pencil, Check } from 'lucide-react';
+import { Plus, Edit, Phone, MapPin, Upload, X, Clock, Briefcase, Pencil, Check, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,7 +10,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
-import { usePandits, useCreatePandit, useUpdatePandit, usePanditExpertiseOptions, useCreateExpertiseOption, useDeleteExpertiseOption, useUpdateExpertiseOption } from '@/hooks/useAdmin';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { usePandits, useCreatePandit, useUpdatePandit, useDeletePandit, usePanditExpertiseOptions, useCreateExpertiseOption, useDeleteExpertiseOption, useUpdateExpertiseOption } from '@/hooks/useAdmin';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -65,6 +66,7 @@ export function PanditManager() {
   const { data: expertiseOptions } = usePanditExpertiseOptions();
   const createPandit = useCreatePandit();
   const updatePandit = useUpdatePandit();
+  const deletePandit = useDeletePandit();
   const createExpertise = useCreateExpertiseOption();
   const deleteExpertise = useDeleteExpertiseOption();
   const updateExpertise = useUpdateExpertiseOption();
@@ -300,6 +302,35 @@ export function PanditManager() {
                     <Edit className="w-4 h-4 mr-1" />
                     Edit
                   </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="w-4 h-4 mr-1" />
+                        Delete
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Pandit</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to delete {pandit.name}? This action cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => deletePandit.mutate(pandit.id)}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
               </CardContent>
             </Card>
