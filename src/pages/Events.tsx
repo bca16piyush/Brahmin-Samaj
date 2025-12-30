@@ -1,83 +1,55 @@
 import { motion } from 'framer-motion';
-import { Calendar, Clock, MapPin, Users, ChevronRight } from 'lucide-react';
+import { Calendar, Clock, MapPin, Users, ChevronRight, Video } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Link } from 'react-router-dom';
-
-const events = [
-  {
-    id: 1,
-    title: 'Maha Shivaratri Celebrations',
-    date: '2025-02-26',
-    time: '18:00 - 06:00',
-    location: 'Community Temple, Varanasi',
-    description: 'Grand night-long celebrations with special abhishek, bhajans, and community prasad.',
-    type: 'Festival',
-    capacity: 500,
-    registered: 342,
-    featured: true,
-  },
-  {
-    id: 2,
-    title: 'Weekly Satyanarayan Puja',
-    date: '2025-01-05',
-    time: '10:00 - 12:00',
-    location: 'Samaj Bhawan, Lucknow',
-    description: 'Join us for the weekly community puja. All families welcome.',
-    type: 'Puja',
-    capacity: 100,
-    registered: 78,
-    featured: false,
-  },
-  {
-    id: 3,
-    title: 'Makar Sankranti Utsav',
-    date: '2025-01-14',
-    time: '06:00 - 11:00',
-    location: 'Ganga Ghat, Allahabad',
-    description: 'Early morning holy dip, surya puja, and distribution of til-gur.',
-    type: 'Festival',
-    capacity: 300,
-    registered: 245,
-    featured: true,
-  },
-  {
-    id: 4,
-    title: 'Vedic Workshop for Youth',
-    date: '2025-01-20',
-    time: '14:00 - 17:00',
-    location: 'Online (Zoom)',
-    description: 'Interactive session on Vedic knowledge for young community members aged 15-25.',
-    type: 'Workshop',
-    capacity: 50,
-    registered: 38,
-    featured: false,
-  },
-  {
-    id: 5,
-    title: 'Annual General Meeting',
-    date: '2025-02-15',
-    time: '11:00 - 14:00',
-    location: 'Community Hall, Delhi',
-    description: 'Annual review meeting for all verified members. Election of new office bearers.',
-    type: 'Meeting',
-    capacity: 200,
-    registered: 156,
-    featured: false,
-  },
-];
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { format } from 'date-fns';
 
 const typeColors: Record<string, string> = {
   Festival: 'bg-gold/20 text-gold',
   Puja: 'bg-primary/20 text-primary',
   Workshop: 'bg-accent/20 text-accent-foreground',
   Meeting: 'bg-secondary text-secondary-foreground',
+  Celebration: 'bg-green-500/20 text-green-600',
+  Event: 'bg-muted text-muted-foreground',
 };
 
+function usePublicEvents() {
+  return useQuery({
+    queryKey: ['public-events'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .order('event_date', { ascending: true });
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
 export default function Events() {
-  const featuredEvents = events.filter((e) => e.featured);
-  const upcomingEvents = events.filter((e) => !e.featured);
+  const { data: events, isLoading } = usePublicEvents();
+
+  const now = new Date();
+  const upcomingEvents = events?.filter((e) => new Date(e.event_date) >= now) || [];
+  const pastEvents = events?.filter((e) => new Date(e.event_date) < now) || [];
+  const featuredEvents = upcomingEvents.filter((e) => e.is_featured);
+  const regularEvents = upcomingEvents.filter((e) => !e.is_featured);
+
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center py-24">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -122,49 +94,73 @@ export default function Events() {
                     initial={{ opacity: 0, y: 30 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.1 }}
-                    className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-maroon to-maroon-light p-8 text-primary-foreground"
+                    className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-maroon to-maroon-light text-primary-foreground"
                   >
+                    {event.image_url && (
+                      <div className="absolute inset-0">
+                        <img
+                          src={event.image_url}
+                          alt={event.title}
+                          className="w-full h-full object-cover opacity-30"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-maroon via-maroon/80 to-transparent" />
+                      </div>
+                    )}
                     <div className="absolute top-0 right-0 w-64 h-64 bg-gold/10 rounded-full blur-3xl" />
-                    <div className="relative z-10">
-                      <Badge className={`${typeColors[event.type]} mb-4`}>
-                        {event.type}
-                      </Badge>
+                    <div className="relative z-10 p-8">
+                      <div className="flex items-center gap-2 mb-4">
+                        <Badge className={`${typeColors[event.event_type || 'Event']}`}>
+                          {event.event_type || 'Event'}
+                        </Badge>
+                        {event.is_live && (
+                          <Badge variant="destructive" className="animate-pulse">
+                            <Video className="w-3 h-3 mr-1" />
+                            LIVE
+                          </Badge>
+                        )}
+                      </div>
                       <h3 className="font-heading text-2xl font-bold mb-4">{event.title}</h3>
-                      <p className="text-primary-foreground/80 mb-6">{event.description}</p>
+                      {event.description && (
+                        <p className="text-primary-foreground/80 mb-6 line-clamp-2">{event.description}</p>
+                      )}
                       
                       <div className="space-y-2 mb-6">
                         <div className="flex items-center gap-2 text-sm">
                           <Calendar className="w-4 h-4 text-gold" />
-                          {new Date(event.date).toLocaleDateString('en-IN', {
-                            weekday: 'long',
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                          })}
+                          {format(new Date(event.event_date), 'EEEE, MMMM d, yyyy')}
                         </div>
                         <div className="flex items-center gap-2 text-sm">
                           <Clock className="w-4 h-4 text-gold" />
-                          {event.time}
+                          {format(new Date(event.event_date), 'h:mm a')}
+                          {event.end_date && ` - ${format(new Date(event.end_date), 'h:mm a')}`}
                         </div>
-                        <div className="flex items-center gap-2 text-sm">
-                          <MapPin className="w-4 h-4 text-gold" />
-                          {event.location}
-                        </div>
-                        <div className="flex items-center gap-2 text-sm">
-                          <Users className="w-4 h-4 text-gold" />
-                          {event.registered} / {event.capacity} registered
-                        </div>
+                        {event.location && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <MapPin className="w-4 h-4 text-gold" />
+                            {event.location}
+                          </div>
+                        )}
+                        {event.registration_limit && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <Users className="w-4 h-4 text-gold" />
+                            {event.registration_limit} seats available
+                          </div>
+                        )}
                       </div>
 
                       <div className="flex gap-3">
-                        <Button variant="hero">
-                          Register Now
-                        </Button>
-                        <Link to="/live">
-                          <Button variant="outline" className="bg-transparent border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10">
-                            Watch Live
+                        <Link to={`/events/${event.id}`}>
+                          <Button variant="hero">
+                            View Details
                           </Button>
                         </Link>
+                        {event.is_live && event.youtube_live_url && (
+                          <Link to={`/events/${event.id}`}>
+                            <Button variant="outline" className="bg-transparent border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10">
+                              Watch Live
+                            </Button>
+                          </Link>
+                        )}
                       </div>
                     </div>
                   </motion.div>
@@ -173,64 +169,145 @@ export default function Events() {
             </div>
           )}
 
-          {/* All Events */}
-          <div>
-            <h2 className="font-heading text-2xl font-bold mb-6">All Upcoming Events</h2>
-            <div className="space-y-4">
-              {upcomingEvents.map((event, index) => (
-                <motion.div
-                  key={event.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  className="group p-6 rounded-xl bg-card border border-border hover:border-primary/30 hover:shadow-lg transition-all"
-                >
-                  <div className="flex flex-col md:flex-row md:items-center gap-4">
-                    {/* Date Box */}
-                    <div className="w-20 h-20 rounded-xl bg-gradient-saffron flex flex-col items-center justify-center text-primary-foreground shrink-0">
-                      <span className="text-2xl font-bold">
-                        {new Date(event.date).getDate()}
-                      </span>
-                      <span className="text-xs uppercase">
-                        {new Date(event.date).toLocaleDateString('en-IN', { month: 'short' })}
-                      </span>
-                    </div>
-
-                    {/* Content */}
-                    <div className="flex-1">
-                      <div className="flex items-start justify-between mb-2">
-                        <div>
-                          <Badge className={`${typeColors[event.type]} mb-2`}>
-                            {event.type}
-                          </Badge>
-                          <h3 className="font-heading text-lg font-semibold">{event.title}</h3>
+          {/* All Upcoming Events */}
+          {regularEvents.length > 0 && (
+            <div className="mb-16">
+              <h2 className="font-heading text-2xl font-bold mb-6">All Upcoming Events</h2>
+              <div className="space-y-4">
+                {regularEvents.map((event, index) => (
+                  <motion.div
+                    key={event.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="group rounded-xl bg-card border border-border hover:border-primary/30 hover:shadow-lg transition-all overflow-hidden"
+                  >
+                    <Link to={`/events/${event.id}`} className="flex flex-col md:flex-row md:items-center">
+                      {/* Event Image */}
+                      {event.image_url && (
+                        <div className="w-full md:w-48 h-32 md:h-full shrink-0">
+                          <img
+                            src={event.image_url}
+                            alt={event.title}
+                            className="w-full h-full object-cover"
+                          />
                         </div>
-                        <Button variant="ghost" size="sm" className="hidden md:flex">
-                          View Details
-                          <ChevronRight className="w-4 h-4 ml-1" />
-                        </Button>
+                      )}
+
+                      <div className="p-6 flex flex-col md:flex-row md:items-center gap-4 flex-1">
+                        {/* Date Box */}
+                        <div className="w-20 h-20 rounded-xl bg-gradient-saffron flex flex-col items-center justify-center text-primary-foreground shrink-0">
+                          <span className="text-2xl font-bold">
+                            {new Date(event.event_date).getDate()}
+                          </span>
+                          <span className="text-xs uppercase">
+                            {format(new Date(event.event_date), 'MMM')}
+                          </span>
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1">
+                          <div className="flex items-start justify-between mb-2">
+                            <div>
+                              <div className="flex items-center gap-2 mb-2">
+                                <Badge className={`${typeColors[event.event_type || 'Event']}`}>
+                                  {event.event_type || 'Event'}
+                                </Badge>
+                                {event.is_live && (
+                                  <Badge variant="destructive" className="animate-pulse">
+                                    <Video className="w-3 h-3 mr-1" />
+                                    LIVE
+                                  </Badge>
+                                )}
+                              </div>
+                              <h3 className="font-heading text-lg font-semibold">{event.title}</h3>
+                            </div>
+                            <Button variant="ghost" size="sm" className="hidden md:flex">
+                              View Details
+                              <ChevronRight className="w-4 h-4 ml-1" />
+                            </Button>
+                          </div>
+                          {event.description && (
+                            <p className="text-sm text-muted-foreground mb-3 line-clamp-1">{event.description}</p>
+                          )}
+                          <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3.5 h-3.5" />
+                              {format(new Date(event.event_date), 'h:mm a')}
+                            </span>
+                            {event.location && (
+                              <span className="flex items-center gap-1">
+                                <MapPin className="w-3.5 h-3.5" />
+                                {event.location}
+                              </span>
+                            )}
+                            {event.registration_limit && (
+                              <span className="flex items-center gap-1">
+                                <Users className="w-3.5 h-3.5" />
+                                {event.registration_limit} seats
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      <p className="text-sm text-muted-foreground mb-3">{event.description}</p>
-                      <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3.5 h-3.5" />
-                          {event.time}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <MapPin className="w-3.5 h-3.5" />
-                          {event.location}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Users className="w-3.5 h-3.5" />
-                          {event.registered} / {event.capacity}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
+                    </Link>
+                  </motion.div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* Past Events */}
+          {pastEvents.length > 0 && (
+            <div>
+              <h2 className="font-heading text-2xl font-bold mb-6 text-muted-foreground">Past Events</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {pastEvents.slice(0, 6).map((event, index) => (
+                  <motion.div
+                    key={event.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                  >
+                    <Link to={`/events/${event.id}`}>
+                      <div className="group rounded-xl bg-card border border-border hover:border-muted-foreground/30 transition-all overflow-hidden opacity-70 hover:opacity-100">
+                        {event.image_url && (
+                          <div className="h-32 overflow-hidden">
+                            <img
+                              src={event.image_url}
+                              alt={event.title}
+                              className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all"
+                            />
+                          </div>
+                        )}
+                        <div className="p-4">
+                          <Badge variant="secondary" className="mb-2 text-xs">
+                            {format(new Date(event.event_date), 'MMM d, yyyy')}
+                          </Badge>
+                          <h3 className="font-heading font-semibold line-clamp-1">{event.title}</h3>
+                          {event.location && (
+                            <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
+                              <MapPin className="w-3 h-3" />
+                              {event.location}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </Link>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Empty State */}
+          {!events?.length && (
+            <div className="text-center py-12">
+              <Calendar className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+              <p className="text-muted-foreground text-lg">No events scheduled at the moment.</p>
+              <p className="text-sm text-muted-foreground mt-2">Check back soon for upcoming community events!</p>
+            </div>
+          )}
         </div>
       </section>
     </Layout>

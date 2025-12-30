@@ -21,11 +21,14 @@ export type Database = {
           description: string | null
           end_date: string | null
           event_date: string
+          event_type: string | null
           id: string
           image_url: string | null
           is_featured: boolean | null
           is_live: boolean | null
           location: string | null
+          map_url: string | null
+          registration_limit: number | null
           title: string
           updated_at: string | null
           youtube_live_url: string | null
@@ -36,11 +39,14 @@ export type Database = {
           description?: string | null
           end_date?: string | null
           event_date: string
+          event_type?: string | null
           id?: string
           image_url?: string | null
           is_featured?: boolean | null
           is_live?: boolean | null
           location?: string | null
+          map_url?: string | null
+          registration_limit?: number | null
           title: string
           updated_at?: string | null
           youtube_live_url?: string | null
@@ -51,11 +57,14 @@ export type Database = {
           description?: string | null
           end_date?: string | null
           event_date?: string
+          event_type?: string | null
           id?: string
           image_url?: string | null
           is_featured?: boolean | null
           is_live?: boolean | null
           location?: string | null
+          map_url?: string | null
+          registration_limit?: number | null
           title?: string
           updated_at?: string | null
           youtube_live_url?: string | null
