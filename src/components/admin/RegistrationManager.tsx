@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, Users, CheckCircle, XCircle, Bell, MapPin, Clock, User, Search, UserPlus, Upload, Download, Loader2 } from 'lucide-react';
+import { Calendar, Users, CheckCircle, XCircle, Bell, MapPin, Clock, User, Search, UserPlus, Upload, Download, Loader2, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -65,7 +65,7 @@ export function RegistrationManager() {
   const [showManualDialog, setShowManualDialog] = useState(false);
   const [showBulkDialog, setShowBulkDialog] = useState(false);
   const [manualForm, setManualForm] = useState({ email: '', name: '', mobile: '' });
-  const [bulkResults, setBulkResults] = useState<{ success: number; failed: number; errors: string[] } | null>(null);
+  const [bulkResults, setBulkResults] = useState<{ success: number; failed: number; errors: string[]; skipped: string[] } | null>(null);
 
   // Fetch all events for the dropdown
   const { data: events, isLoading: eventsLoading } = useQuery({
@@ -195,48 +195,25 @@ export function RegistrationManager() {
     },
   });
 
-  // Bulk registration mutation
+  // Bulk registration mutation - ONLY registers existing signed-up users
   const bulkRegister = useMutation({
     mutationFn: async (usersData: { email: string; name: string; mobile: string }[]) => {
       if (!selectedEventId) throw new Error('No event selected');
-      const results = { success: 0, failed: 0, errors: [] as string[] };
+      const results = { success: 0, failed: 0, errors: [] as string[], skipped: [] as string[] };
 
       for (const userData of usersData) {
         try {
-          // Find or create user
+          // Find existing user by email - only registered users can be bulk-registered for events
           const { data: existingProfile } = await supabase
             .from('profiles')
-            .select('id')
+            .select('id, email, verification_status')
             .eq('email', userData.email)
             .maybeSingle();
 
-          let userId: string;
-
-          if (existingProfile) {
-            userId = existingProfile.id;
-          } else {
-            const { data: authData, error: authError } = await supabase.auth.signUp({
-              email: userData.email,
-              password: Math.random().toString(36).slice(-12) + 'A1!',
-              options: {
-                data: {
-                  name: userData.name,
-                  mobile: userData.mobile,
-                },
-              },
-            });
-
-            if (authError) {
-              results.failed++;
-              results.errors.push(`${userData.email}: ${authError.message}`);
-              continue;
-            }
-            if (!authData.user) {
-              results.failed++;
-              results.errors.push(`${userData.email}: Failed to create user`);
-              continue;
-            }
-            userId = authData.user.id;
+          if (!existingProfile) {
+            // User not found - skip and add to warning list
+            results.skipped.push(userData.email);
+            continue;
           }
 
           // Register for event
@@ -244,7 +221,7 @@ export function RegistrationManager() {
             .from('event_registrations')
             .insert({
               event_id: selectedEventId,
-              user_id: userId,
+              user_id: existingProfile.id,
               status: 'registered',
             });
 
@@ -266,9 +243,14 @@ export function RegistrationManager() {
     onSuccess: (results) => {
       queryClient.invalidateQueries({ queryKey: ['admin-event-registrations', selectedEventId] });
       setBulkResults(results);
+      
+      let message = `${results.success} registered`;
+      if (results.failed > 0) message += `, ${results.failed} failed`;
+      if (results.skipped.length > 0) message += `, ${results.skipped.length} skipped (not signed up)`;
+      
       toast({
         title: 'Bulk Registration Complete',
-        description: `${results.success} registered, ${results.failed} failed.`,
+        description: message,
       });
     },
     onError: (error: any) => {
@@ -488,6 +470,15 @@ export function RegistrationManager() {
                   <p className="text-sm text-muted-foreground">
                     Upload a CSV file to register multiple users for: <strong>{selectedEvent?.title}</strong>
                   </p>
+                  <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded p-3 text-xs">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="font-medium text-yellow-800 dark:text-yellow-300">Only existing users will be registered</p>
+                        <p className="text-yellow-700 dark:text-yellow-400 mt-1">Users not found in the system will be skipped and listed in the results.</p>
+                      </div>
+                    </div>
+                  </div>
                   <p className="text-xs text-muted-foreground">
                     Required column: user_email. Optional: user_name, user_mobile
                   </p>
@@ -523,7 +514,7 @@ export function RegistrationManager() {
                   )}
 
                   {bulkResults && (
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       <div className="flex items-center gap-2">
                         <CheckCircle className="w-5 h-5 text-green-600" />
                         <span>{bulkResults.success} users registered</span>
@@ -534,9 +525,25 @@ export function RegistrationManager() {
                             <XCircle className="w-5 h-5 text-destructive" />
                             <span>{bulkResults.failed} failed</span>
                           </div>
-                          <div className="max-h-32 overflow-y-auto bg-muted/50 rounded p-2 text-xs">
+                          <div className="max-h-24 overflow-y-auto bg-muted/50 rounded p-2 text-xs">
                             {bulkResults.errors.map((err, i) => (
                               <p key={i} className="text-destructive">{err}</p>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                      {bulkResults.skipped.length > 0 && (
+                        <>
+                          <div className="flex items-center gap-2 text-yellow-600">
+                            <XCircle className="w-5 h-5" />
+                            <span className="font-medium">{bulkResults.skipped.length} users skipped (not signed up)</span>
+                          </div>
+                          <div className="max-h-32 overflow-y-auto bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded p-3 text-sm">
+                            <p className="text-xs text-yellow-700 dark:text-yellow-400 mb-2 font-medium">
+                              These users are not registered in the system and were skipped:
+                            </p>
+                            {bulkResults.skipped.map((email, i) => (
+                              <p key={i} className="text-yellow-800 dark:text-yellow-300 text-xs">{email}</p>
                             ))}
                           </div>
                         </>
