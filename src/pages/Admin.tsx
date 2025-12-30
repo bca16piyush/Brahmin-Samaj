@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Users, UserCheck, Gift, Newspaper, Calendar, User2, LayoutDashboard, CalendarCheck, ClipboardList } from 'lucide-react';
+import { Users, UserCheck, Gift, Newspaper, Calendar, User2, LayoutDashboard, CalendarCheck, ClipboardList, UsersRound } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
@@ -13,6 +13,7 @@ import { NewsPublisher } from '@/components/admin/NewsPublisher';
 import { EventManager } from '@/components/admin/EventManager';
 import { BookingManager } from '@/components/admin/BookingManager';
 import { RegistrationManager } from '@/components/admin/RegistrationManager';
+import { UserManager } from '@/components/admin/UserManager';
 
 export default function Admin() {
   const { isAdmin, isLoading, isAuthenticated } = useAuth();
@@ -65,6 +66,10 @@ export default function Admin() {
                 <UserCheck className="w-4 h-4" />
                 <span className="hidden sm:inline">Verifications</span>
               </TabsTrigger>
+              <TabsTrigger value="users" className="flex items-center gap-2">
+                <UsersRound className="w-4 h-4" />
+                <span className="hidden sm:inline">Users</span>
+              </TabsTrigger>
               <TabsTrigger value="pandits" className="flex items-center gap-2">
                 <User2 className="w-4 h-4" />
                 <span className="hidden sm:inline">Pandits</span>
@@ -97,6 +102,10 @@ export default function Admin() {
 
             <TabsContent value="verifications">
               <PendingVerifications />
+            </TabsContent>
+
+            <TabsContent value="users">
+              <UserManager />
             </TabsContent>
 
             <TabsContent value="pandits">

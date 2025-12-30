@@ -1,16 +1,24 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, Users, CheckCircle, XCircle, Bell, MapPin, Clock, User, Search } from 'lucide-react';
+import { Calendar, Users, CheckCircle, XCircle, Bell, MapPin, Clock, User, Search, UserPlus, Upload, Download, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useQuery } from '@tanstack/react-query';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { useUpdateAttendance, useSendEventReminders } from '@/hooks/useEventRegistrations';
+import { useToast } from '@/hooks/use-toast';
+
+const SAMPLE_REGISTRATION_CSV = `user_email,user_name,user_mobile
+rajesh@example.com,Rajesh Sharma,9876543210
+priya@example.com,Priya Mishra,9876543211
+amit@example.com,Amit Verma,9876543212`;
 
 // Admin-specific hook to fetch registrations with profile data
 function useAdminEventRegistrations(eventId?: string) {
@@ -48,8 +56,16 @@ function useAdminEventRegistrations(eventId?: string) {
 }
 
 export function RegistrationManager() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
   const [selectedEventId, setSelectedEventId] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [showManualDialog, setShowManualDialog] = useState(false);
+  const [showBulkDialog, setShowBulkDialog] = useState(false);
+  const [manualForm, setManualForm] = useState({ email: '', name: '', mobile: '' });
+  const [bulkResults, setBulkResults] = useState<{ success: number; failed: number; errors: string[] } | null>(null);
 
   // Fetch all events for the dropdown
   const { data: events, isLoading: eventsLoading } = useQuery({
@@ -99,6 +115,231 @@ export function RegistrationManager() {
     });
   };
 
+  const manualRegister = useMutation({
+    mutationFn: async (data: { email: string; name: string; mobile: string }) => {
+      if (!selectedEventId) throw new Error('No event selected');
+
+      // First find or create user by email
+      const { data: existingProfiles } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', data.email)
+        .maybeSingle();
+
+      let userId: string;
+
+      if (existingProfiles) {
+        userId = existingProfiles.id;
+      } else {
+        // Create new auth user
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: data.email,
+          password: Math.random().toString(36).slice(-12) + 'A1!',
+          options: {
+            data: {
+              name: data.name,
+              mobile: data.mobile,
+            },
+          },
+        });
+
+        if (authError) throw authError;
+        if (!authData.user) throw new Error('Failed to create user');
+        userId = authData.user.id;
+      }
+
+      // Register for event
+      const { error: regError } = await supabase
+        .from('event_registrations')
+        .insert({
+          event_id: selectedEventId,
+          user_id: userId,
+          status: 'registered',
+        });
+
+      if (regError) throw regError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-event-registrations', selectedEventId] });
+      setShowManualDialog(false);
+      setManualForm({ email: '', name: '', mobile: '' });
+      toast({
+        title: 'Registration Added',
+        description: 'User has been registered for the event.',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Bulk registration mutation
+  const bulkRegister = useMutation({
+    mutationFn: async (usersData: { email: string; name: string; mobile: string }[]) => {
+      if (!selectedEventId) throw new Error('No event selected');
+      const results = { success: 0, failed: 0, errors: [] as string[] };
+
+      for (const userData of usersData) {
+        try {
+          // Find or create user
+          const { data: existingProfile } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('email', userData.email)
+            .maybeSingle();
+
+          let userId: string;
+
+          if (existingProfile) {
+            userId = existingProfile.id;
+          } else {
+            const { data: authData, error: authError } = await supabase.auth.signUp({
+              email: userData.email,
+              password: Math.random().toString(36).slice(-12) + 'A1!',
+              options: {
+                data: {
+                  name: userData.name,
+                  mobile: userData.mobile,
+                },
+              },
+            });
+
+            if (authError) {
+              results.failed++;
+              results.errors.push(`${userData.email}: ${authError.message}`);
+              continue;
+            }
+            if (!authData.user) {
+              results.failed++;
+              results.errors.push(`${userData.email}: Failed to create user`);
+              continue;
+            }
+            userId = authData.user.id;
+          }
+
+          // Register for event
+          const { error: regError } = await supabase
+            .from('event_registrations')
+            .insert({
+              event_id: selectedEventId,
+              user_id: userId,
+              status: 'registered',
+            });
+
+          if (regError) {
+            results.failed++;
+            results.errors.push(`${userData.email}: ${regError.message}`);
+            continue;
+          }
+
+          results.success++;
+        } catch (err: any) {
+          results.failed++;
+          results.errors.push(`${userData.email}: ${err.message}`);
+        }
+      }
+
+      return results;
+    },
+    onSuccess: (results) => {
+      queryClient.invalidateQueries({ queryKey: ['admin-event-registrations', selectedEventId] });
+      setBulkResults(results);
+      toast({
+        title: 'Bulk Registration Complete',
+        description: `${results.success} registered, ${results.failed} failed.`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const handleDownloadSampleCSV = () => {
+    const blob = new Blob([SAMPLE_REGISTRATION_CSV], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'sample_event_registrations.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      const lines = text.split('\n').filter(line => line.trim());
+      
+      if (lines.length < 2) {
+        toast({
+          title: 'Invalid CSV',
+          description: 'CSV must have a header row and at least one data row.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+      const requiredHeaders = ['user_email'];
+      const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
+
+      if (missingHeaders.length > 0) {
+        toast({
+          title: 'Missing Required Columns',
+          description: 'CSV must include: user_email',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const usersData: { email: string; name: string; mobile: string }[] = [];
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(',').map(v => v.trim());
+        const row: any = {};
+        headers.forEach((header, index) => {
+          row[header] = values[index] || '';
+        });
+        
+        if (row.user_email) {
+          usersData.push({
+            email: row.user_email,
+            name: row.user_name || '',
+            mobile: row.user_mobile || '',
+          });
+        }
+      }
+
+      if (usersData.length === 0) {
+        toast({
+          title: 'No Valid Data',
+          description: 'No valid registration data found in the CSV file.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      bulkRegister.mutate(usersData);
+    };
+    reader.readAsText(file);
+    
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const attendedCount = registrations?.filter(r => r.attended).length || 0;
   const registeredCount = registrations?.length || 0;
 
@@ -112,8 +353,148 @@ export function RegistrationManager() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <h2 className="font-heading text-xl font-semibold">Event Registrations</h2>
+        {selectedEventId && (
+          <div className="flex gap-2">
+            {/* Manual Registration Dialog */}
+            <Dialog open={showManualDialog} onOpenChange={setShowManualDialog}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Add Registration
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Manual Registration</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 mt-4">
+                  <p className="text-sm text-muted-foreground">
+                    Register a user for: <strong>{selectedEvent?.title}</strong>
+                  </p>
+                  <div className="space-y-2">
+                    <Label>Email *</Label>
+                    <Input
+                      type="email"
+                      value={manualForm.email}
+                      onChange={(e) => setManualForm({ ...manualForm, email: e.target.value })}
+                      placeholder="user@example.com"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Name (for new users)</Label>
+                    <Input
+                      value={manualForm.name}
+                      onChange={(e) => setManualForm({ ...manualForm, name: e.target.value })}
+                      placeholder="Full name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Mobile (for new users)</Label>
+                    <Input
+                      value={manualForm.mobile}
+                      onChange={(e) => setManualForm({ ...manualForm, mobile: e.target.value })}
+                      placeholder="9876543210"
+                    />
+                  </div>
+                  <Button
+                    className="w-full"
+                    onClick={() => manualRegister.mutate(manualForm)}
+                    disabled={!manualForm.email || manualRegister.isPending}
+                  >
+                    {manualRegister.isPending ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Registering...
+                      </>
+                    ) : (
+                      'Register User'
+                    )}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            {/* Bulk Upload Dialog */}
+            <Dialog open={showBulkDialog} onOpenChange={(open) => {
+              setShowBulkDialog(open);
+              if (!open) setBulkResults(null);
+            }}>
+              <DialogTrigger asChild>
+                <Button variant="hero" size="sm">
+                  <Upload className="w-4 h-4 mr-2" />
+                  Bulk Upload
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Bulk Registration Upload</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 mt-4">
+                  <p className="text-sm text-muted-foreground">
+                    Upload a CSV file to register multiple users for: <strong>{selectedEvent?.title}</strong>
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Required column: user_email. Optional: user_name, user_mobile
+                  </p>
+                  
+                  <Button variant="outline" className="w-full" onClick={handleDownloadSampleCSV}>
+                    <Download className="w-4 h-4 mr-2" />
+                    Download Sample CSV
+                  </Button>
+
+                  <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".csv"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                      id="registration-csv-upload"
+                    />
+                    <label
+                      htmlFor="registration-csv-upload"
+                      className="cursor-pointer flex flex-col items-center"
+                    >
+                      <Upload className="w-8 h-8 text-muted-foreground mb-2" />
+                      <span className="text-sm font-medium">Click to upload CSV</span>
+                    </label>
+                  </div>
+
+                  {bulkRegister.isPending && (
+                    <div className="flex items-center justify-center gap-2 py-4">
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>Processing registrations...</span>
+                    </div>
+                  )}
+
+                  {bulkResults && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="w-5 h-5 text-green-600" />
+                        <span>{bulkResults.success} users registered</span>
+                      </div>
+                      {bulkResults.failed > 0 && (
+                        <>
+                          <div className="flex items-center gap-2">
+                            <XCircle className="w-5 h-5 text-destructive" />
+                            <span>{bulkResults.failed} failed</span>
+                          </div>
+                          <div className="max-h-32 overflow-y-auto bg-muted/50 rounded p-2 text-xs">
+                            {bulkResults.errors.map((err, i) => (
+                              <p key={i} className="text-destructive">{err}</p>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+        )}
       </div>
 
       {/* Event Selector */}
