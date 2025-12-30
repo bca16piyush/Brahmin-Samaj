@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Edit, Phone, MapPin, Upload, X, Clock, Briefcase } from 'lucide-react';
+import { Plus, Edit, Phone, MapPin, Upload, X, Clock, Briefcase, Pencil, Check } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
-import { usePandits, useCreatePandit, useUpdatePandit, usePanditExpertiseOptions, useCreateExpertiseOption, useDeleteExpertiseOption } from '@/hooks/useAdmin';
+import { usePandits, useCreatePandit, useUpdatePandit, usePanditExpertiseOptions, useCreateExpertiseOption, useDeleteExpertiseOption, useUpdateExpertiseOption } from '@/hooks/useAdmin';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -67,6 +67,7 @@ export function PanditManager() {
   const updatePandit = useUpdatePandit();
   const createExpertise = useCreateExpertiseOption();
   const deleteExpertise = useDeleteExpertiseOption();
+  const updateExpertise = useUpdateExpertiseOption();
   const { toast } = useToast();
   
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -76,6 +77,8 @@ export function PanditManager() {
   const [newExpertiseName, setNewExpertiseName] = useState('');
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [editingExpertiseId, setEditingExpertiseId] = useState<string | null>(null);
+  const [editingExpertiseName, setEditingExpertiseName] = useState('');
 
   const handleOpenCreate = () => {
     setFormData(initialFormData);
@@ -526,6 +529,7 @@ export function PanditManager() {
                 onClick={handleAddExpertise}
                 disabled={!newExpertiseName.trim() || createExpertise.isPending}
               >
+                <Plus className="w-4 h-4 mr-1" />
                 Add
               </Button>
             </div>
@@ -533,19 +537,73 @@ export function PanditManager() {
               {expertiseOptions?.map((option) => (
                 <div
                   key={option.id}
-                  className="flex items-center justify-between p-2 border rounded"
+                  className="flex items-center justify-between p-2 border rounded gap-2"
                 >
-                  <span>{option.name}</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => deleteExpertise.mutate(option.id)}
-                    disabled={deleteExpertise.isPending}
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
+                  {editingExpertiseId === option.id ? (
+                    <>
+                      <Input
+                        value={editingExpertiseName}
+                        onChange={(e) => setEditingExpertiseName(e.target.value)}
+                        className="flex-1"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            updateExpertise.mutate({ id: option.id, name: editingExpertiseName });
+                            setEditingExpertiseId(null);
+                          } else if (e.key === 'Escape') {
+                            setEditingExpertiseId(null);
+                          }
+                        }}
+                        autoFocus
+                      />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          updateExpertise.mutate({ id: option.id, name: editingExpertiseName });
+                          setEditingExpertiseId(null);
+                        }}
+                        disabled={updateExpertise.isPending || !editingExpertiseName.trim()}
+                      >
+                        <Check className="w-4 h-4 text-green-600" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setEditingExpertiseId(null)}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <span className="flex-1">{option.name}</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setEditingExpertiseId(option.id);
+                          setEditingExpertiseName(option.name);
+                        }}
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => deleteExpertise.mutate(option.id)}
+                        disabled={deleteExpertise.isPending}
+                      >
+                        <X className="w-4 h-4 text-destructive" />
+                      </Button>
+                    </>
+                  )}
                 </div>
               ))}
+              {!expertiseOptions?.length && (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  No expertise options yet. Add your first one above.
+                </p>
+              )}
             </div>
           </div>
           <DialogFooter>
