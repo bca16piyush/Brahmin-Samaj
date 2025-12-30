@@ -59,11 +59,16 @@ function isCurrentlyAvailable(weeklyAvailability: WeeklyAvailability | null): bo
   const currentDay = days[now.getDay()];
   const dayAvailability = weeklyAvailability[currentDay];
   
-  if (!dayAvailability?.enabled) return false;
+  if (!dayAvailability?.enabled || !dayAvailability?.start || !dayAvailability?.end) return false;
   
   const currentTime = now.getHours() * 60 + now.getMinutes();
-  const [startHour, startMin] = dayAvailability.start.split(':').map(Number);
-  const [endHour, endMin] = dayAvailability.end.split(':').map(Number);
+  const startParts = dayAvailability.start.split(':');
+  const endParts = dayAvailability.end.split(':');
+  
+  if (startParts.length < 2 || endParts.length < 2) return false;
+  
+  const [startHour, startMin] = startParts.map(Number);
+  const [endHour, endMin] = endParts.map(Number);
   const startTime = startHour * 60 + startMin;
   const endTime = endHour * 60 + endMin;
   
@@ -94,7 +99,7 @@ function formatAvailabilitySchedule(weeklyAvailability: WeeklyAvailability | nul
   
   const schedule: string[] = [];
   Object.entries(weeklyAvailability).forEach(([day, avail]) => {
-    if (avail?.enabled) {
+    if (avail?.enabled && avail?.start && avail?.end) {
       schedule.push(`${dayAbbrev[day]}: ${avail.start}-${avail.end}`);
     }
   });
