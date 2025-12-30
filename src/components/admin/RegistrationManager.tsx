@@ -10,7 +10,42 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
-import { useEventRegistrations, useUpdateAttendance, useSendEventReminders } from '@/hooks/useEventRegistrations';
+import { useUpdateAttendance, useSendEventReminders } from '@/hooks/useEventRegistrations';
+
+// Admin-specific hook to fetch registrations with profile data
+function useAdminEventRegistrations(eventId?: string) {
+  return useQuery({
+    queryKey: ['admin-event-registrations', eventId],
+    queryFn: async () => {
+      // First get registrations
+      const { data: registrations, error: regError } = await supabase
+        .from('event_registrations')
+        .select('*')
+        .eq('event_id', eventId)
+        .order('registered_at', { ascending: false });
+
+      if (regError) throw regError;
+      if (!registrations || registrations.length === 0) return [];
+
+      // Then get profiles for those users
+      const userIds = registrations.map(r => r.user_id);
+      const { data: profiles, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, name, mobile, email')
+        .in('id', userIds);
+
+      if (profileError) throw profileError;
+
+      // Merge data
+      const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+      return registrations.map(reg => ({
+        ...reg,
+        profiles: profileMap.get(reg.user_id) || null,
+      }));
+    },
+    enabled: !!eventId,
+  });
+}
 
 export function RegistrationManager() {
   const [selectedEventId, setSelectedEventId] = useState<string>('');
@@ -29,8 +64,8 @@ export function RegistrationManager() {
     },
   });
 
-  // Fetch registrations for selected event
-  const { data: registrations, isLoading: registrationsLoading } = useEventRegistrations(selectedEventId || undefined);
+  // Fetch registrations for selected event using admin-specific query
+  const { data: registrations, isLoading: registrationsLoading } = useAdminEventRegistrations(selectedEventId || undefined);
   const updateAttendance = useUpdateAttendance();
   const sendReminders = useSendEventReminders();
 
