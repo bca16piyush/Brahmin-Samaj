@@ -14,16 +14,370 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      events: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          end_date: string | null
+          event_date: string
+          id: string
+          image_url: string | null
+          is_featured: boolean | null
+          is_live: boolean | null
+          location: string | null
+          title: string
+          updated_at: string | null
+          youtube_live_url: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          end_date?: string | null
+          event_date: string
+          id?: string
+          image_url?: string | null
+          is_featured?: boolean | null
+          is_live?: boolean | null
+          location?: string | null
+          title: string
+          updated_at?: string | null
+          youtube_live_url?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          end_date?: string | null
+          event_date?: string
+          id?: string
+          image_url?: string | null
+          is_featured?: boolean | null
+          is_live?: boolean | null
+          location?: string | null
+          title?: string
+          updated_at?: string | null
+          youtube_live_url?: string | null
+        }
+        Relationships: []
+      }
+      gallery: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          description: string | null
+          event_date: string | null
+          event_id: string | null
+          event_name: string | null
+          id: string
+          image_url: string
+          is_public: boolean | null
+          title: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          event_date?: string | null
+          event_id?: string | null
+          event_name?: string | null
+          id?: string
+          image_url: string
+          is_public?: boolean | null
+          title: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          event_date?: string | null
+          event_id?: string | null
+          event_name?: string | null
+          id?: string
+          image_url?: string
+          is_public?: boolean | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gallery_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      in_kind_donations: {
+        Row: {
+          created_at: string | null
+          dropoff_location: string
+          id: string
+          item_type: string
+          notes: string | null
+          quantity: string
+          received_at: string | null
+          status: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          dropoff_location: string
+          id?: string
+          item_type: string
+          notes?: string | null
+          quantity: string
+          received_at?: string | null
+          status?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          dropoff_location?: string
+          id?: string
+          item_type?: string
+          notes?: string | null
+          quantity?: string
+          received_at?: string | null
+          status?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      monetary_donations: {
+        Row: {
+          amount: number
+          created_at: string | null
+          id: string
+          notes: string | null
+          payment_method: string | null
+          status: string | null
+          transaction_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          payment_method?: string | null
+          status?: string | null
+          transaction_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          payment_method?: string | null
+          status?: string | null
+          transaction_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      news: {
+        Row: {
+          content: string
+          created_at: string | null
+          created_by: string | null
+          id: string
+          is_urgent: boolean | null
+          send_notification: boolean | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_urgent?: boolean | null
+          send_notification?: boolean | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_urgent?: boolean | null
+          send_notification?: boolean | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      notification_subscriptions: {
+        Row: {
+          created_at: string | null
+          email_notifications: boolean | null
+          id: string
+          push_subscription: Json | null
+          user_id: string | null
+          whatsapp_notifications: boolean | null
+          whatsapp_number: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email_notifications?: boolean | null
+          id?: string
+          push_subscription?: Json | null
+          user_id?: string | null
+          whatsapp_notifications?: boolean | null
+          whatsapp_number?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email_notifications?: boolean | null
+          id?: string
+          push_subscription?: Json | null
+          user_id?: string | null
+          whatsapp_notifications?: boolean | null
+          whatsapp_number?: string | null
+        }
+        Relationships: []
+      }
+      pandits: {
+        Row: {
+          availability: string | null
+          bio: string | null
+          created_at: string | null
+          expertise: string[] | null
+          id: string
+          is_active: boolean | null
+          location: string | null
+          name: string
+          phone: string | null
+          photo_url: string | null
+          updated_at: string | null
+          whatsapp: string | null
+        }
+        Insert: {
+          availability?: string | null
+          bio?: string | null
+          created_at?: string | null
+          expertise?: string[] | null
+          id?: string
+          is_active?: boolean | null
+          location?: string | null
+          name: string
+          phone?: string | null
+          photo_url?: string | null
+          updated_at?: string | null
+          whatsapp?: string | null
+        }
+        Update: {
+          availability?: string | null
+          bio?: string | null
+          created_at?: string | null
+          expertise?: string[] | null
+          id?: string
+          is_active?: boolean | null
+          location?: string | null
+          name?: string
+          phone?: string | null
+          photo_url?: string | null
+          updated_at?: string | null
+          whatsapp?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          email: string | null
+          father_name: string | null
+          gotra: string | null
+          id: string
+          mobile: string
+          name: string
+          native_village: string | null
+          reference_mobile: string | null
+          reference_person: string | null
+          rejection_reason: string | null
+          updated_at: string | null
+          verification_status:
+            | Database["public"]["Enums"]["verification_status"]
+            | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          email?: string | null
+          father_name?: string | null
+          gotra?: string | null
+          id: string
+          mobile: string
+          name: string
+          native_village?: string | null
+          reference_mobile?: string | null
+          reference_person?: string | null
+          rejection_reason?: string | null
+          updated_at?: string | null
+          verification_status?:
+            | Database["public"]["Enums"]["verification_status"]
+            | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          email?: string | null
+          father_name?: string | null
+          gotra?: string | null
+          id?: string
+          mobile?: string
+          name?: string
+          native_village?: string | null
+          reference_mobile?: string | null
+          reference_person?: string | null
+          rejection_reason?: string | null
+          updated_at?: string | null
+          verification_status?:
+            | Database["public"]["Enums"]["verification_status"]
+            | null
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_verified: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "moderator" | "user"
+      verification_status: "none" | "pending" | "verified" | "rejected"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +504,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "moderator", "user"],
+      verification_status: ["none", "pending", "verified", "rejected"],
+    },
   },
 } as const
