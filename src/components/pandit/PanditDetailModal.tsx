@@ -1,3 +1,4 @@
+import * as React from 'react';
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { Star, MapPin, Phone, MessageCircle, Clock, Briefcase, Calendar, Send } from 'lucide-react';
@@ -84,7 +85,7 @@ function formatSchedule(weeklyAvailability: WeeklyAvailability | null): { day: s
     }));
 }
 
-export function PanditDetailModal({ pandit, open, onOpenChange }: Props) {
+export const PanditDetailModal = React.forwardRef<HTMLDivElement, Props>(function PanditDetailModal({ pandit, open, onOpenChange }, ref) {
   const { isVerified, user } = useAuth();
   const { data: reviews } = usePanditReviews(pandit?.id || '');
   const { data: ratingData } = usePanditAverageRating(pandit?.id || '');
@@ -391,4 +392,6 @@ export function PanditDetailModal({ pandit, open, onOpenChange }: Props) {
       </DialogContent>
     </Dialog>
   );
-}
+});
+
+PanditDetailModal.displayName = 'PanditDetailModal';

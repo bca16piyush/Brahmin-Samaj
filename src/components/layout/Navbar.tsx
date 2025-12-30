@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, User, LogIn, ChevronDown } from 'lucide-react';
+import { Menu, X, User, LogIn, CalendarCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -63,6 +63,12 @@ export function Navbar() {
                     <Button variant="outline" size="sm">Admin</Button>
                   </Link>
                 )}
+                <Link to="/my-bookings">
+                  <Button variant="ghost" size="sm">
+                    <CalendarCheck className="w-4 h-4 mr-1" />
+                    My Bookings
+                  </Button>
+                </Link>
                 <div className="text-right">
                   <p className="text-sm font-medium">{profile?.name}</p>
                   <p className="text-xs text-muted-foreground capitalize">
@@ -135,6 +141,12 @@ export function Navbar() {
                           <Button variant="outline" className="w-full mb-2">Admin Dashboard</Button>
                         </Link>
                       )}
+                      <Link to="/my-bookings" onClick={() => setIsOpen(false)}>
+                        <Button variant="outline" className="w-full mb-2">
+                          <CalendarCheck className="w-4 h-4 mr-2" />
+                          My Bookings
+                        </Button>
+                      </Link>
                       <Button variant="outline" className="w-full" onClick={() => { signOut(); setIsOpen(false); }}>
                         Logout
                       </Button>
