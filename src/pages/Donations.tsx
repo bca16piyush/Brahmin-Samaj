@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Wallet, Package, Copy, Check, MapPin, Gift, Heart } from 'lucide-react';
+import { Wallet, Package, Copy, Check, MapPin, Gift, Heart, Phone, Home } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { Link } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 
 const inKindItems = ['Ghee', 'Rice', 'Wheat', 'Clothes', 'Utensils', 'Books', 'Other'];
 const dropOffLocations = [
@@ -30,14 +31,17 @@ const bankDetails = {
 
 export default function Donations() {
   const [copied, setCopied] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [inKindForm, setInKindForm] = useState({
     itemType: '',
     quantity: '',
     location: '',
     message: '',
+    phone: '',
+    address: '',
   });
   const { toast } = useToast();
-  const { isVerified } = useAuth();
+  const { isVerified, user } = useAuth();
 
   const copyToClipboard = (text: string, field: string) => {
     navigator.clipboard.writeText(text);
@@ -49,13 +53,45 @@ export default function Donations() {
     });
   };
 
-  const handleInKindSubmit = (e: React.FormEvent) => {
+  const handleInKindSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast({
-      title: 'Donation Pledged!',
-      description: 'Thank you for your generous donation. We will contact you shortly.',
-    });
-    setInKindForm({ itemType: '', quantity: '', location: '', message: '' });
+    if (!user || !inKindForm.itemType || !inKindForm.quantity || !inKindForm.location || !inKindForm.phone || !inKindForm.address) {
+      toast({
+        title: 'Missing Fields',
+        description: 'Please fill in all required fields',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase.from('in_kind_donations').insert({
+        user_id: user.id,
+        item_type: inKindForm.itemType,
+        quantity: inKindForm.quantity,
+        dropoff_location: inKindForm.location,
+        notes: inKindForm.message || null,
+        donor_phone: inKindForm.phone,
+        donor_address: inKindForm.address,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Donation Pledged!',
+        description: 'Thank you for your generous donation. We will contact you shortly.',
+      });
+      setInKindForm({ itemType: '', quantity: '', location: '', message: '', phone: '', address: '' });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to submit donation',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (!isVerified) {
@@ -239,26 +275,58 @@ export default function Donations() {
                       </div>
                     </div>
 
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="phone">Phone Number *</Label>
+                        <div className="relative">
+                          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Input
+                            id="phone"
+                            required
+                            placeholder="Your contact number"
+                            value={inKindForm.phone}
+                            onChange={(e) => setInKindForm({ ...inKindForm, phone: e.target.value })}
+                            className="pl-10"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="location">Drop-off Location *</Label>
+                        <Select
+                          value={inKindForm.location}
+                          onValueChange={(value) => setInKindForm({ ...inKindForm, location: value })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select location" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {dropOffLocations.map((loc) => (
+                              <SelectItem key={loc} value={loc}>
+                                <span className="flex items-center gap-2">
+                                  <MapPin className="w-3 h-3" />
+                                  {loc}
+                                </span>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
                     <div className="space-y-2">
-                      <Label htmlFor="location">Drop-off Location *</Label>
-                      <Select
-                        value={inKindForm.location}
-                        onValueChange={(value) => setInKindForm({ ...inKindForm, location: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select location" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {dropOffLocations.map((loc) => (
-                            <SelectItem key={loc} value={loc}>
-                              <span className="flex items-center gap-2">
-                                <MapPin className="w-3 h-3" />
-                                {loc}
-                              </span>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Label htmlFor="address">Your Address *</Label>
+                      <div className="relative">
+                        <Home className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                        <Textarea
+                          id="address"
+                          required
+                          placeholder="Your full address for pickup coordination"
+                          value={inKindForm.address}
+                          onChange={(e) => setInKindForm({ ...inKindForm, address: e.target.value })}
+                          className="pl-10 min-h-[80px]"
+                          rows={2}
+                        />
+                      </div>
                     </div>
 
                     <div className="space-y-2">
@@ -272,9 +340,9 @@ export default function Donations() {
                       />
                     </div>
 
-                    <Button variant="hero" type="submit" className="w-full">
+                    <Button variant="hero" type="submit" className="w-full" disabled={isSubmitting}>
                       <Gift className="w-4 h-4 mr-2" />
-                      Pledge Donation
+                      {isSubmitting ? 'Submitting...' : 'Pledge Donation'}
                     </Button>
                   </form>
                 </div>
