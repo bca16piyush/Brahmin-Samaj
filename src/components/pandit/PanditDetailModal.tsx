@@ -1,8 +1,9 @@
 import * as React from 'react';
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { Star, MapPin, Phone, MessageCircle, Clock, Briefcase, Calendar, Send } from 'lucide-react';
+import { Star, MapPin, Phone, MessageCircle, Clock, Briefcase, Calendar, Send, Pencil, Trash2, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -11,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
-import { usePanditReviews, usePanditAverageRating, useCreateReview, useCreateBooking } from '@/hooks/usePanditBookings';
+import { usePanditReviews, usePanditAverageRating, useCreateReview, useUpdateReview, useDeleteReview, useCreateBooking } from '@/hooks/usePanditBookings';
 import { usePanditExpertiseOptions } from '@/hooks/useAdmin';
 
 interface WeeklyAvailability {
@@ -94,10 +95,14 @@ export const PanditDetailModal = React.forwardRef<HTMLDivElement, Props>(functio
   const { data: ratingData } = usePanditAverageRating(pandit?.id || '');
   const { data: expertiseOptions } = usePanditExpertiseOptions();
   const createReview = useCreateReview();
+  const updateReview = useUpdateReview();
+  const deleteReview = useDeleteReview();
   const createBooking = useCreateBooking();
   
   const [activeTab, setActiveTab] = useState('book');
   const [showReviewForm, setShowReviewForm] = useState(false);
+  const [editingReview, setEditingReview] = useState<any>(null);
+  const [deleteReviewId, setDeleteReviewId] = useState<string | null>(null);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewText, setReviewText] = useState('');
   const [reviewCeremony, setReviewCeremony] = useState('');
@@ -114,19 +119,55 @@ export const PanditDetailModal = React.forwardRef<HTMLDivElement, Props>(functio
   const schedule = formatSchedule(pandit.weekly_availability);
 
   const handleSubmitReview = () => {
-    createReview.mutate({
-      pandit_id: pandit.id,
-      rating: reviewRating,
-      review_text: reviewText || undefined,
-      ceremony_type: reviewCeremony || undefined,
-    }, {
-      onSuccess: () => {
-        setReviewText('');
-        setReviewCeremony('');
-        setReviewRating(5);
-        setShowReviewForm(false);
-      },
-    });
+    if (editingReview) {
+      updateReview.mutate({
+        id: editingReview.id,
+        pandit_id: pandit.id,
+        rating: reviewRating,
+        review_text: reviewText || undefined,
+        ceremony_type: reviewCeremony || undefined,
+      }, {
+        onSuccess: () => {
+          resetReviewForm();
+        },
+      });
+    } else {
+      createReview.mutate({
+        pandit_id: pandit.id,
+        rating: reviewRating,
+        review_text: reviewText || undefined,
+        ceremony_type: reviewCeremony || undefined,
+      }, {
+        onSuccess: () => {
+          resetReviewForm();
+        },
+      });
+    }
+  };
+
+  const resetReviewForm = () => {
+    setReviewText('');
+    setReviewCeremony('');
+    setReviewRating(5);
+    setShowReviewForm(false);
+    setEditingReview(null);
+  };
+
+  const handleEditReview = (review: any) => {
+    setEditingReview(review);
+    setReviewRating(review.rating);
+    setReviewText(review.review_text || '');
+    setReviewCeremony(review.ceremony_type || '');
+    setShowReviewForm(true);
+    setActiveTab('reviews');
+  };
+
+  const handleDeleteReview = () => {
+    if (deleteReviewId && pandit) {
+      deleteReview.mutate({ id: deleteReviewId, pandit_id: pandit.id }, {
+        onSuccess: () => setDeleteReviewId(null),
+      });
+    }
   };
 
   const handleSubmitBooking = () => {
@@ -362,13 +403,13 @@ export const PanditDetailModal = React.forwardRef<HTMLDivElement, Props>(functio
           </TabsContent>
           
           <TabsContent value="reviews" className="space-y-4 mt-4">
-            {/* Write Review - available for any logged-in user */}
+            {/* Write/Edit Review - available for any logged-in user */}
             {user && showReviewForm && (
               <div className="p-4 border rounded-lg space-y-3 bg-muted/30">
                 <div className="flex items-center justify-between">
-                  <h4 className="font-medium">Write a Review</h4>
-                  <Button variant="ghost" size="sm" onClick={() => setShowReviewForm(false)}>
-                    Cancel
+                  <h4 className="font-medium">{editingReview ? 'Edit Review' : 'Write a Review'}</h4>
+                  <Button variant="ghost" size="sm" onClick={resetReviewForm}>
+                    <X className="w-4 h-4" />
                   </Button>
                 </div>
                 <div className="flex items-center gap-2">
@@ -393,11 +434,11 @@ export const PanditDetailModal = React.forwardRef<HTMLDivElement, Props>(functio
                 </div>
                 <Button
                   onClick={handleSubmitReview}
-                  disabled={createReview.isPending}
+                  disabled={createReview.isPending || updateReview.isPending}
                   size="sm"
                 >
                   <Send className="w-4 h-4 mr-2" />
-                  Submit Review
+                  {editingReview ? 'Update Review' : 'Submit Review'}
                 </Button>
               </div>
             )}
@@ -427,29 +468,76 @@ export const PanditDetailModal = React.forwardRef<HTMLDivElement, Props>(functio
               {reviews?.length === 0 && (
                 <p className="text-center text-muted-foreground py-4">No reviews yet. Be the first to review!</p>
               )}
-              {reviews?.map((review: any) => (
-                <div key={review.id} className="p-4 bg-muted/30 rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{review.profiles?.name || 'Anonymous'}</span>
-                      {review.ceremony_type && (
-                        <Badge variant="outline" className="text-xs">{review.ceremony_type}</Badge>
-                      )}
+              {reviews?.map((review: any) => {
+                const isOwnReview = user?.id === review.user_id;
+                
+                return (
+                  <div key={review.id} className="p-4 bg-muted/30 rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{review.profiles?.name || 'Anonymous'}</span>
+                        {review.ceremony_type && (
+                          <Badge variant="outline" className="text-xs">{review.ceremony_type}</Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {isOwnReview && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => handleEditReview(review)}
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-destructive hover:text-destructive"
+                              onClick={() => setDeleteReviewId(review.id)}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </>
+                        )}
+                        <span className="text-xs text-muted-foreground">
+                          {format(new Date(review.created_at), 'MMM d, yyyy')}
+                        </span>
+                      </div>
                     </div>
-                    <span className="text-xs text-muted-foreground">
-                      {format(new Date(review.created_at), 'MMM d, yyyy')}
-                    </span>
+                    <StarRating rating={review.rating} />
+                    {review.review_text && (
+                      <p className="mt-2 text-sm text-muted-foreground">{review.review_text}</p>
+                    )}
                   </div>
-                  <StarRating rating={review.rating} />
-                  {review.review_text && (
-                    <p className="mt-2 text-sm text-muted-foreground">{review.review_text}</p>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           </TabsContent>
         </Tabs>
       </DialogContent>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteReviewId} onOpenChange={(open) => !open && setDeleteReviewId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Review</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this review? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteReview}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 });
