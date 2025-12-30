@@ -23,13 +23,20 @@ export function Footer() {
           <div>
             <h4 className="font-heading text-lg font-semibold mb-4">Quick Links</h4>
             <ul className="space-y-2">
-              {['Home', 'About Us', 'Panditji Directory', 'Events', 'Gallery', 'Donations'].map((link) => (
-                <li key={link}>
+              {[
+                { name: 'Home', href: '/' },
+                { name: 'About Us', href: '/about' },
+                { name: 'Panditji Directory', href: '/panditji' },
+                { name: 'Events', href: '/events' },
+                { name: 'Gallery', href: '/gallery' },
+                { name: 'Donations', href: '/donations' },
+              ].map((link) => (
+                <li key={link.name}>
                   <Link
-                    to={`/${link.toLowerCase().replace(/\s+/g, '-')}`}
+                    to={link.href}
                     className="text-primary-foreground/70 hover:text-gold transition-colors text-sm"
                   >
-                    {link}
+                    {link.name}
                   </Link>
                 </li>
               ))}
