@@ -209,6 +209,36 @@ export function useDeleteExpertiseOption() {
   });
 }
 
+export function useUpdateExpertiseOption() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+      const { error } = await supabase
+        .from('pandit_expertise_options')
+        .update({ name })
+        .eq('id', id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pandit-expertise-options'] });
+      toast({
+        title: 'Expertise Updated',
+        description: 'The expertise option has been updated.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
 export function usePandits() {
   return useQuery({
     queryKey: ['admin-pandits'],
