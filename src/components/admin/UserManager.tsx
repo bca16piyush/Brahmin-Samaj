@@ -183,13 +183,35 @@ export function UserManager() {
     },
   });
 
-  // Bulk create users mutation
+  // Bulk create users mutation - stores user data in profiles for auto-approval on signup
   const bulkCreateUsers = useMutation({
     mutationFn: async (usersData: UserFormData[]) => {
-      const results = { success: 0, failed: 0, errors: [] as string[] };
+      const results = { success: 0, failed: 0, errors: [] as string[], pending: [] as string[] };
 
       for (const userData of usersData) {
         try {
+          // Check if profile already exists with this email
+          const { data: existingProfile } = await supabase
+            .from('profiles')
+            .select('id, email')
+            .eq('email', userData.email)
+            .maybeSingle();
+
+          if (existingProfile) {
+            // User already exists, just update profile data
+            await supabase
+              .from('profiles')
+              .update({
+                gotra: userData.gotra || null,
+                father_name: userData.father_name || null,
+                native_village: userData.native_village || null,
+              })
+              .eq('id', existingProfile.id);
+            results.success++;
+            continue;
+          }
+
+          // Create auth user - they'll be marked as 'signup_pending' until they actually sign up
           const { data: authData, error: authError } = await supabase.auth.signUp({
             email: userData.email,
             password: Math.random().toString(36).slice(-12) + 'A1!',
@@ -197,6 +219,7 @@ export function UserManager() {
               data: {
                 name: userData.name,
                 mobile: userData.mobile,
+                bulk_uploaded: true, // Flag to mark as bulk uploaded for auto-approval
               },
             },
           });
@@ -208,17 +231,19 @@ export function UserManager() {
           }
 
           if (authData.user) {
-            // Update profile with additional fields
+            // Update profile with additional fields and mark as signup_pending
             await supabase
               .from('profiles')
               .update({
                 gotra: userData.gotra || null,
                 father_name: userData.father_name || null,
                 native_village: userData.native_village || null,
+                verification_status: 'none', // Will become 'verified' when user actually signs up
               })
               .eq('id', authData.user.id);
 
             results.success++;
+            results.pending.push(userData.email);
           }
         } catch (err: any) {
           results.failed++;
@@ -233,7 +258,7 @@ export function UserManager() {
       setBulkResults(results);
       toast({
         title: 'Bulk Upload Complete',
-        description: `${results.success} users created, ${results.failed} failed.`,
+        description: `${results.success} users created (signup pending), ${results.failed} failed.`,
       });
     },
     onError: (error: any) => {
@@ -352,6 +377,7 @@ export function UserManager() {
 
   const verifiedCount = users?.filter(u => u.verification_status === 'verified').length || 0;
   const pendingCount = users?.filter(u => u.verification_status === 'pending').length || 0;
+  const signupPendingCount = users?.filter(u => u.verification_status === 'none').length || 0;
 
   return (
     <div className="space-y-6">
@@ -518,7 +544,7 @@ export function UserManager() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="border-border">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -554,6 +580,19 @@ export function UserManager() {
               <div>
                 <p className="text-2xl font-bold">{pendingCount}</p>
                 <p className="text-sm text-muted-foreground">Pending Verification</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-border">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                <Users className="w-5 h-5 text-muted-foreground" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{signupPendingCount}</p>
+                <p className="text-sm text-muted-foreground">Signup Pending</p>
               </div>
             </div>
           </CardContent>
@@ -618,7 +657,9 @@ export function UserManager() {
                       }
                       className="text-xs"
                     >
-                      {user.verification_status || 'none'}
+                      {user.verification_status === 'none' ? 'Signup Pending' :
+                       user.verification_status === 'pending' ? 'Verification Pending' :
+                       user.verification_status || 'none'}
                     </Badge>
                   </div>
                   <div className="col-span-2 text-sm text-muted-foreground">
