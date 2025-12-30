@@ -1,15 +1,23 @@
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Calendar, Clock, MapPin, Users, ArrowLeft, Video, Share2, ExternalLink } from 'lucide-react';
+import { Calendar, Clock, MapPin, Users, ArrowLeft, Video, Share2, ExternalLink, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { 
+  useMyRegistration, 
+  useRegistrationCount, 
+  useRegisterForEvent, 
+  useCancelRegistration 
+} from '@/hooks/useEventRegistrations';
+import { LockedContent } from '@/components/shared/LockedContent';
 
 const typeColors: Record<string, string> = {
   Festival: 'bg-gold/20 text-gold',
@@ -23,7 +31,6 @@ const typeColors: Record<string, string> = {
 function getYouTubeEmbedUrl(url: string | null): string | null {
   if (!url) return null;
   
-  // Handle various YouTube URL formats
   const patterns = [
     /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\s]+)/,
     /youtube\.com\/live\/([^&\s?]+)/,
@@ -41,7 +48,7 @@ function getYouTubeEmbedUrl(url: string | null): string | null {
 
 export default function EventDetail() {
   const { id } = useParams();
-  const { isVerified } = useAuth();
+  const { user, isVerified } = useAuth();
   const { toast } = useToast();
 
   const { data: event, isLoading, error } = useQuery({
@@ -58,6 +65,11 @@ export default function EventDetail() {
     },
     enabled: !!id,
   });
+
+  const { data: myRegistration, isLoading: registrationLoading } = useMyRegistration(id);
+  const { data: registrationCount = 0 } = useRegistrationCount(id);
+  const registerMutation = useRegisterForEvent();
+  const cancelMutation = useCancelRegistration();
 
   const handleShare = async () => {
     try {
@@ -77,6 +89,16 @@ export default function EventDetail() {
     } catch (err) {
       console.error('Share failed:', err);
     }
+  };
+
+  const handleRegister = () => {
+    if (!id) return;
+    registerMutation.mutate(id);
+  };
+
+  const handleCancelRegistration = () => {
+    if (!myRegistration || !id) return;
+    cancelMutation.mutate({ registrationId: myRegistration.id, eventId: id });
   };
 
   if (isLoading) {
@@ -105,6 +127,11 @@ export default function EventDetail() {
 
   const youtubeEmbedUrl = getYouTubeEmbedUrl(event.youtube_live_url);
   const isPastEvent = new Date(event.event_date) < new Date();
+  const isFull = event.registration_limit ? registrationCount >= event.registration_limit : false;
+  const spotsLeft = event.registration_limit ? event.registration_limit - registrationCount : null;
+  const registrationPercentage = event.registration_limit 
+    ? Math.min((registrationCount / event.registration_limit) * 100, 100) 
+    : 0;
 
   return (
     <Layout>
@@ -277,21 +304,83 @@ export default function EventDetail() {
                       {event.registration_limit && (
                         <div className="flex items-start gap-3">
                           <Users className="w-5 h-5 text-primary mt-0.5" />
-                          <div>
-                            <p className="font-medium">Limited Seats</p>
-                            <p className="text-sm text-muted-foreground">
-                              Maximum {event.registration_limit} attendees
+                          <div className="flex-1">
+                            <p className="font-medium">
+                              {registrationCount} / {event.registration_limit} registered
                             </p>
+                            <Progress value={registrationPercentage} className="mt-2 h-2" />
+                            {spotsLeft !== null && spotsLeft > 0 && (
+                              <p className="text-sm text-muted-foreground mt-1">
+                                {spotsLeft} spots left
+                              </p>
+                            )}
+                            {isFull && (
+                              <p className="text-sm text-destructive mt-1">
+                                Event is full
+                              </p>
+                            )}
                           </div>
+                        </div>
+                      )}
+
+                      {myRegistration && (
+                        <div className="flex items-center gap-2 p-3 bg-green-500/10 rounded-lg border border-green-500/20">
+                          <CheckCircle className="w-5 h-5 text-green-600" />
+                          <span className="text-sm font-medium text-green-700">
+                            You're registered for this event
+                          </span>
                         </div>
                       )}
                     </div>
 
                     <div className="space-y-3">
                       {!isPastEvent && (
-                        <Button variant="hero" className="w-full" size="lg">
-                          Register Now
-                        </Button>
+                        <>
+                          {!user ? (
+                            <Link to="/login" className="block">
+                              <Button variant="hero" className="w-full" size="lg">
+                                Login to Register
+                              </Button>
+                            </Link>
+                          ) : !isVerified ? (
+                            <LockedContent message="Verified members can register for events">
+                              <Button variant="hero" className="w-full" size="lg" disabled>
+                                Register Now
+                              </Button>
+                            </LockedContent>
+                          ) : myRegistration ? (
+                            <Button 
+                              variant="outline" 
+                              className="w-full text-destructive hover:text-destructive" 
+                              size="lg"
+                              onClick={handleCancelRegistration}
+                              disabled={cancelMutation.isPending}
+                            >
+                              {cancelMutation.isPending ? (
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              ) : (
+                                <XCircle className="w-4 h-4 mr-2" />
+                              )}
+                              Cancel Registration
+                            </Button>
+                          ) : (
+                            <Button 
+                              variant="hero" 
+                              className="w-full" 
+                              size="lg"
+                              onClick={handleRegister}
+                              disabled={registerMutation.isPending || isFull}
+                            >
+                              {registerMutation.isPending ? (
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              ) : isFull ? (
+                                'Event Full'
+                              ) : (
+                                'Register Now'
+                              )}
+                            </Button>
+                          )}
+                        </>
                       )}
                       
                       {youtubeEmbedUrl && event.is_live && (
