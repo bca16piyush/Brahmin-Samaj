@@ -210,9 +210,10 @@ export default function Live() {
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
                 {upcomingEvents.slice(0, 6).map((event, index) => (
-                  <div
+                  <Link
                     key={event.id}
-                    className="p-6 rounded-xl bg-card border border-border hover:border-primary/30 hover:shadow-lg transition-all"
+                    to={`/events/${event.id}`}
+                    className="p-6 rounded-xl bg-card border border-border hover:border-primary/30 hover:shadow-lg transition-all block"
                   >
                     <div className="flex items-start justify-between mb-4">
                       <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -240,7 +241,7 @@ export default function Live() {
                         minute: '2-digit',
                       })}
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             </motion.div>

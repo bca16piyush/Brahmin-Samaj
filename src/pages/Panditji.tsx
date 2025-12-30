@@ -194,6 +194,7 @@ export default function Panditji() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedExpertise, setSelectedExpertise] = useState<string>('all');
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
+  const [selectedRating, setSelectedRating] = useState<string>('all');
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [selectedPandit, setSelectedPandit] = useState<any>(null);
 
@@ -209,9 +210,19 @@ export default function Panditji() {
       const matchesSearch = pandit.name.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesExpertise = selectedExpertise === 'all' || pandit.expertise?.includes(selectedExpertise);
       const matchesLocation = selectedLocation === 'all' || pandit.location === selectedLocation;
-      return matchesSearch && matchesExpertise && matchesLocation;
+      
+      // Rating filter
+      let matchesRating = true;
+      if (selectedRating !== 'all') {
+        const rating = panditRatings?.[pandit.id];
+        const avgRating = rating?.average || 0;
+        const minRating = parseInt(selectedRating);
+        matchesRating = avgRating >= minRating;
+      }
+      
+      return matchesSearch && matchesExpertise && matchesLocation && matchesRating;
     });
-  }, [pandits, searchQuery, selectedExpertise, selectedLocation]);
+  }, [pandits, searchQuery, selectedExpertise, selectedLocation, selectedRating, panditRatings]);
 
   const handleContact = () => {
     if (!isVerified) {
@@ -292,6 +303,18 @@ export default function Panditji() {
                 {locations.map((loc) => (
                   <SelectItem key={loc} value={loc}>{loc}</SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+            <Select value={selectedRating} onValueChange={setSelectedRating}>
+              <SelectTrigger className="w-full md:w-[160px]">
+                <SelectValue placeholder="Rating" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Ratings</SelectItem>
+                <SelectItem value="4">4+ Stars</SelectItem>
+                <SelectItem value="3">3+ Stars</SelectItem>
+                <SelectItem value="2">2+ Stars</SelectItem>
+                <SelectItem value="1">1+ Stars</SelectItem>
               </SelectContent>
             </Select>
           </motion.div>
