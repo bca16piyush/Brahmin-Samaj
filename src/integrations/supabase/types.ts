@@ -241,6 +241,59 @@ export type Database = {
         }
         Relationships: []
       }
+      pandit_bookings: {
+        Row: {
+          admin_notes: string | null
+          booking_date: string
+          booking_time: string | null
+          ceremony_type: string
+          created_at: string | null
+          id: string
+          location: string | null
+          message: string | null
+          pandit_id: string
+          status: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          booking_date: string
+          booking_time?: string | null
+          ceremony_type: string
+          created_at?: string | null
+          id?: string
+          location?: string | null
+          message?: string | null
+          pandit_id: string
+          status?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          admin_notes?: string | null
+          booking_date?: string
+          booking_time?: string | null
+          ceremony_type?: string
+          created_at?: string | null
+          id?: string
+          location?: string | null
+          message?: string | null
+          pandit_id?: string
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pandit_bookings_pandit_id_fkey"
+            columns: ["pandit_id"]
+            isOneToOne: false
+            referencedRelation: "pandits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pandit_expertise_options: {
         Row: {
           created_at: string | null
@@ -261,6 +314,44 @@ export type Database = {
           name?: string
         }
         Relationships: []
+      }
+      pandit_reviews: {
+        Row: {
+          ceremony_type: string | null
+          created_at: string | null
+          id: string
+          pandit_id: string
+          rating: number
+          review_text: string | null
+          user_id: string
+        }
+        Insert: {
+          ceremony_type?: string | null
+          created_at?: string | null
+          id?: string
+          pandit_id: string
+          rating: number
+          review_text?: string | null
+          user_id: string
+        }
+        Update: {
+          ceremony_type?: string | null
+          created_at?: string | null
+          id?: string
+          pandit_id?: string
+          rating?: number
+          review_text?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pandit_reviews_pandit_id_fkey"
+            columns: ["pandit_id"]
+            isOneToOne: false
+            referencedRelation: "pandits"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pandits: {
         Row: {
