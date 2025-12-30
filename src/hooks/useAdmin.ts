@@ -370,6 +370,16 @@ export function useUpdateDonationStatus() {
 
   return useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      // First get the donation details for notification
+      const { data: donation, error: fetchError } = await supabase
+        .from('in_kind_donations')
+        .select('*, profiles (name, mobile)')
+        .eq('id', id)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // Update the status
       const { error } = await supabase
         .from('in_kind_donations')
         .update({
@@ -377,14 +387,33 @@ export function useUpdateDonationStatus() {
           received_at: status === 'received' ? new Date().toISOString() : null,
         })
         .eq('id', id);
-      
+
       if (error) throw error;
+
+      // Send WhatsApp notification if marking as received
+      if (status === 'received' && donation) {
+        try {
+          await supabase.functions.invoke('send-whatsapp', {
+            body: {
+              type: 'announcement',
+              userId: donation.user_id,
+              title: '🎁 Donation Received!',
+              body: `Thank you ${donation.profiles?.name || 'dear donor'}! Your donation of ${donation.item_type} (${donation.quantity}) has been received at ${donation.dropoff_location}. We truly appreciate your generosity!`,
+            },
+          });
+        } catch (notifyError) {
+          console.error('Failed to send notification:', notifyError);
+        }
+      }
+
+      return donation;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-inkind-donations'] });
+      queryClient.invalidateQueries({ queryKey: ['my-donations'] });
       toast({
         title: 'Status Updated',
-        description: 'The donation status has been updated.',
+        description: 'The donation status has been updated and the donor has been notified.',
       });
     },
     onError: (error) => {
