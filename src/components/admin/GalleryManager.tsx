@@ -81,8 +81,9 @@ export function GalleryManager() {
       setUploadProgress({ current: 0, total: files.length });
 
       const selectedEvent = events?.find(e => e.id === uploadForm.event_id);
-      const folderPath = uploadForm.event_id 
-        ? `events/${uploadForm.event_id}`
+      const eventId = uploadForm.event_id === 'none' ? null : uploadForm.event_id;
+      const folderPath = eventId 
+        ? `events/${eventId}`
         : 'general';
 
       for (let i = 0; i < files.length; i++) {
@@ -118,7 +119,7 @@ export function GalleryManager() {
               title: uploadForm.title || file.name.replace(/\.[^/.]+$/, ''),
               description: uploadForm.description || null,
               image_url: urlData.publicUrl,
-              event_id: uploadForm.event_id || null,
+              event_id: eventId || null,
               event_name: selectedEvent?.title || null,
               event_date: selectedEvent?.event_date ? format(new Date(selectedEvent.event_date), 'yyyy-MM-dd') : null,
               category: uploadForm.category || null,
@@ -269,7 +270,7 @@ export function GalleryManager() {
                     <SelectValue placeholder="Select an event (optional)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">No specific event</SelectItem>
+                    <SelectItem value="none">No specific event</SelectItem>
                     {events?.map(event => (
                       <SelectItem key={event.id} value={event.id}>
                         {event.title} - {format(new Date(event.event_date), 'MMM d, yyyy')}
