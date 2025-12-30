@@ -241,11 +241,33 @@ export type Database = {
         }
         Relationships: []
       }
+      pandit_expertise_options: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       pandits: {
         Row: {
           availability: string | null
           bio: string | null
           created_at: string | null
+          experience_start_date: string | null
           expertise: string[] | null
           id: string
           is_active: boolean | null
@@ -254,12 +276,14 @@ export type Database = {
           phone: string | null
           photo_url: string | null
           updated_at: string | null
+          weekly_availability: Json | null
           whatsapp: string | null
         }
         Insert: {
           availability?: string | null
           bio?: string | null
           created_at?: string | null
+          experience_start_date?: string | null
           expertise?: string[] | null
           id?: string
           is_active?: boolean | null
@@ -268,12 +292,14 @@ export type Database = {
           phone?: string | null
           photo_url?: string | null
           updated_at?: string | null
+          weekly_availability?: Json | null
           whatsapp?: string | null
         }
         Update: {
           availability?: string | null
           bio?: string | null
           created_at?: string | null
+          experience_start_date?: string | null
           expertise?: string[] | null
           id?: string
           is_active?: boolean | null
@@ -282,6 +308,7 @@ export type Database = {
           phone?: string | null
           photo_url?: string | null
           updated_at?: string | null
+          weekly_availability?: Json | null
           whatsapp?: string | null
         }
         Relationships: []

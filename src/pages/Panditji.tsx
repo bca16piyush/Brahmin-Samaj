@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { MapPin, Star, Phone, MessageCircle, Lock, Search, Filter, X } from 'lucide-react';
+import { MapPin, Star, Phone, MessageCircle, Lock, Search, Clock, Briefcase } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,104 +9,124 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
-const allExpertise = ['Vedic Rituals', 'Astrology', 'Grih Pravesh', 'Marriage', 'Satyanarayan', 'Havan', 'Shradh', 'Mundan'];
-const locations = ['Varanasi, UP', 'Allahabad, UP', 'Lucknow, UP', 'Delhi', 'Mumbai', 'Pune'];
+interface WeeklyAvailability {
+  [key: string]: {
+    enabled: boolean;
+    start: string;
+    end: string;
+  };
+}
 
-const pandits = [
-  {
-    id: 1,
-    name: 'Pt. Ramesh Shastri',
-    photo: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=300&h=300&fit=crop',
-    expertise: ['Vedic Rituals', 'Astrology'],
-    location: 'Varanasi, UP',
-    rating: 4.9,
-    reviews: 127,
-    phone: '+91 98765 43210',
-    experience: '25+ years',
-    available: true,
-    bio: 'Renowned Vedic scholar with expertise in ancient rituals and Jyotish Shastra.',
-  },
-  {
-    id: 2,
-    name: 'Pt. Suresh Dwivedi',
-    photo: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=300&h=300&fit=crop',
-    expertise: ['Grih Pravesh', 'Marriage'],
-    location: 'Allahabad, UP',
-    rating: 4.8,
-    reviews: 89,
-    phone: '+91 98765 43211',
-    experience: '18 years',
-    available: true,
-    bio: 'Specialist in auspicious ceremonies and traditional wedding rituals.',
-  },
-  {
-    id: 3,
-    name: 'Pt. Anil Tripathi',
-    photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&h=300&fit=crop',
-    expertise: ['Satyanarayan', 'Havan'],
-    location: 'Lucknow, UP',
-    rating: 4.7,
-    reviews: 64,
-    phone: '+91 98765 43212',
-    experience: '12 years',
-    available: false,
-    bio: 'Expert in conducting Satyanarayan Katha and various Havan ceremonies.',
-  },
-  {
-    id: 4,
-    name: 'Pt. Vijay Sharma',
-    photo: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&h=300&fit=crop',
-    expertise: ['Shradh', 'Astrology'],
-    location: 'Delhi',
-    rating: 4.9,
-    reviews: 156,
-    phone: '+91 98765 43213',
-    experience: '30+ years',
-    available: true,
-    bio: 'Highly respected for Pitru Paksha ceremonies and astrological consultations.',
-  },
-  {
-    id: 5,
-    name: 'Pt. Raghunath Mishra',
-    photo: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=300&h=300&fit=crop',
-    expertise: ['Mundan', 'Vedic Rituals'],
-    location: 'Mumbai',
-    rating: 4.6,
-    reviews: 42,
-    phone: '+91 98765 43214',
-    experience: '15 years',
-    available: true,
-    bio: 'Known for conducting sacred ceremonies with traditional authenticity.',
-  },
-  {
-    id: 6,
-    name: 'Pt. Keshav Pandey',
-    photo: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=300&h=300&fit=crop',
-    expertise: ['Marriage', 'Havan', 'Grih Pravesh'],
-    location: 'Pune',
-    rating: 4.8,
-    reviews: 78,
-    phone: '+91 98765 43215',
-    experience: '20 years',
-    available: true,
-    bio: 'Multi-talented priest specializing in various Vedic ceremonies and consultations.',
-  },
-];
+function useActivePandits() {
+  return useQuery({
+    queryKey: ['active-pandits'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('pandits')
+        .select('*')
+        .eq('is_active', true)
+        .order('name', { ascending: true });
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+function usePanditExpertiseOptions() {
+  return useQuery({
+    queryKey: ['pandit-expertise-options'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('pandit_expertise_options')
+        .select('name')
+        .order('name', { ascending: true });
+      
+      if (error) throw error;
+      return data.map(e => e.name);
+    },
+  });
+}
+
+function isCurrentlyAvailable(weeklyAvailability: WeeklyAvailability | null): boolean {
+  if (!weeklyAvailability || typeof weeklyAvailability !== 'object') return false;
+  
+  const now = new Date();
+  const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const currentDay = days[now.getDay()];
+  const dayAvailability = weeklyAvailability[currentDay];
+  
+  if (!dayAvailability?.enabled) return false;
+  
+  const currentTime = now.getHours() * 60 + now.getMinutes();
+  const [startHour, startMin] = dayAvailability.start.split(':').map(Number);
+  const [endHour, endMin] = dayAvailability.end.split(':').map(Number);
+  const startTime = startHour * 60 + startMin;
+  const endTime = endHour * 60 + endMin;
+  
+  return currentTime >= startTime && currentTime <= endTime;
+}
+
+function calculateExperience(startDate: string | null): string {
+  if (!startDate) return '';
+  const start = new Date(startDate);
+  const now = new Date();
+  const years = Math.floor((now.getTime() - start.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+  if (years < 1) return 'Less than 1 year';
+  return `${years}+ years`;
+}
+
+function formatAvailabilitySchedule(weeklyAvailability: WeeklyAvailability | null): string[] {
+  if (!weeklyAvailability || typeof weeklyAvailability !== 'object') return [];
+  
+  const dayAbbrev: { [key: string]: string } = {
+    monday: 'Mon',
+    tuesday: 'Tue',
+    wednesday: 'Wed',
+    thursday: 'Thu',
+    friday: 'Fri',
+    saturday: 'Sat',
+    sunday: 'Sun',
+  };
+  
+  const schedule: string[] = [];
+  Object.entries(weeklyAvailability).forEach(([day, avail]) => {
+    if (avail?.enabled) {
+      schedule.push(`${dayAbbrev[day]}: ${avail.start}-${avail.end}`);
+    }
+  });
+  
+  return schedule;
+}
 
 export default function Panditji() {
   const { isVerified } = useAuth();
+  const { data: pandits, isLoading } = useActivePandits();
+  const { data: expertiseOptions } = usePanditExpertiseOptions();
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedExpertise, setSelectedExpertise] = useState<string>('all');
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [showLoginModal, setShowLoginModal] = useState(false);
 
-  const filteredPandits = pandits.filter((pandit) => {
-    const matchesSearch = pandit.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesExpertise = selectedExpertise === 'all' || pandit.expertise.includes(selectedExpertise);
-    const matchesLocation = selectedLocation === 'all' || pandit.location === selectedLocation;
-    return matchesSearch && matchesExpertise && matchesLocation;
-  });
+  const locations = useMemo(() => {
+    if (!pandits) return [];
+    const locs = new Set(pandits.map(p => p.location).filter(Boolean));
+    return Array.from(locs) as string[];
+  }, [pandits]);
+
+  const filteredPandits = useMemo(() => {
+    if (!pandits) return [];
+    return pandits.filter((pandit) => {
+      const matchesSearch = pandit.name.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesExpertise = selectedExpertise === 'all' || pandit.expertise?.includes(selectedExpertise);
+      const matchesLocation = selectedLocation === 'all' || pandit.location === selectedLocation;
+      return matchesSearch && matchesExpertise && matchesLocation;
+    });
+  }, [pandits, searchQuery, selectedExpertise, selectedLocation]);
 
   const handleContact = () => {
     if (!isVerified) {
@@ -167,7 +187,7 @@ export default function Panditji() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Expertise</SelectItem>
-                {allExpertise.map((exp) => (
+                {expertiseOptions?.map((exp) => (
                   <SelectItem key={exp} value={exp}>{exp}</SelectItem>
                 ))}
               </SelectContent>
@@ -187,104 +207,144 @@ export default function Panditji() {
 
           {/* Results Count */}
           <p className="text-sm text-muted-foreground mb-6">
-            Showing {filteredPandits.length} of {pandits.length} Panditji
+            {isLoading ? 'Loading...' : `Showing ${filteredPandits.length} Panditji`}
           </p>
+
+          {/* Loading State */}
+          {isLoading && (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          )}
 
           {/* Pandit Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredPandits.map((pandit, index) => (
-              <motion.div
-                key={pandit.id}
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 * index }}
-                className="group p-6 rounded-2xl bg-card border border-border hover:border-primary/30 hover:shadow-temple transition-all duration-300"
-              >
-                <div className="flex items-start gap-4 mb-4">
-                  <div className="relative">
-                    <img
-                      src={pandit.photo}
-                      alt={pandit.name}
-                      className="w-24 h-24 rounded-xl object-cover border-2 border-gold/30"
-                    />
-                    <span className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-card ${pandit.available ? 'bg-green-500' : 'bg-muted-foreground'}`} />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-heading text-xl font-semibold text-foreground mb-1">
-                      {pandit.name}
-                    </h3>
-                    <div className="flex items-center gap-1 text-sm text-muted-foreground mb-2">
-                      <MapPin className="w-3.5 h-3.5" />
-                      {pandit.location}
+            {filteredPandits.map((pandit, index) => {
+              const available = isCurrentlyAvailable(pandit.weekly_availability as WeeklyAvailability);
+              const experience = calculateExperience(pandit.experience_start_date);
+              const schedule = formatAvailabilitySchedule(pandit.weekly_availability as WeeklyAvailability);
+              
+              return (
+                <motion.div
+                  key={pandit.id}
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 * Math.min(index, 5) }}
+                  className="group p-6 rounded-2xl bg-card border border-border hover:border-primary/30 hover:shadow-temple transition-all duration-300"
+                >
+                  <div className="flex items-start gap-4 mb-4">
+                    <div className="relative">
+                      {pandit.photo_url ? (
+                        <img
+                          src={pandit.photo_url}
+                          alt={pandit.name}
+                          className="w-24 h-24 rounded-xl object-cover border-2 border-gold/30"
+                        />
+                      ) : (
+                        <div className="w-24 h-24 rounded-xl bg-muted flex items-center justify-center border-2 border-gold/30">
+                          <span className="text-2xl font-semibold text-muted-foreground">
+                            {pandit.name.charAt(0)}
+                          </span>
+                        </div>
+                      )}
+                      <span className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-card ${available ? 'bg-green-500' : 'bg-muted-foreground'}`} />
                     </div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-1">
-                        <Star className="w-4 h-4 fill-gold text-gold" />
-                        <span className="text-sm font-medium">{pandit.rating}</span>
+                    <div className="flex-1">
+                      <h3 className="font-heading text-xl font-semibold text-foreground mb-1">
+                        {pandit.name}
+                      </h3>
+                      <div className="flex items-center gap-1 text-sm text-muted-foreground mb-2">
+                        <MapPin className="w-3.5 h-3.5" />
+                        {pandit.location || 'Location not set'}
                       </div>
-                      <span className="text-sm text-muted-foreground">({pandit.reviews} reviews)</span>
+                      {experience && (
+                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                          <Briefcase className="w-3.5 h-3.5" />
+                          {experience} experience
+                        </div>
+                      )}
                     </div>
                   </div>
-                </div>
 
-                <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-                  {pandit.bio}
-                </p>
+                  {pandit.bio && (
+                    <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+                      {pandit.bio}
+                    </p>
+                  )}
 
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {pandit.expertise.map((skill) => (
-                    <Badge key={skill} variant="secondary" className="text-xs">
-                      {skill}
-                    </Badge>
-                  ))}
-                </div>
-
-                <div className="flex items-center justify-between text-sm text-muted-foreground mb-4">
-                  <span>Experience: {pandit.experience}</span>
-                  <span className={pandit.available ? 'text-green-600' : 'text-muted-foreground'}>
-                    {pandit.available ? '● Available' : '● Busy'}
-                  </span>
-                </div>
-
-                {/* Contact Section */}
-                {isVerified ? (
-                  <div className="flex gap-2">
-                    <Button variant="hero" size="sm" className="flex-1">
-                      <Phone className="w-4 h-4 mr-1" />
-                      Call Now
-                    </Button>
-                    <Button variant="golden" size="sm" className="flex-1">
-                      <MessageCircle className="w-4 h-4 mr-1" />
-                      WhatsApp
-                    </Button>
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {pandit.expertise?.map((skill: string) => (
+                      <Badge key={skill} variant="secondary" className="text-xs">
+                        {skill}
+                      </Badge>
+                    ))}
                   </div>
-                ) : (
-                  <div className="relative">
-                    <div className="blur-lock pointer-events-none">
-                      <div className="flex gap-2">
-                        <Button variant="default" size="sm" className="flex-1">
+
+                  {/* Availability Status */}
+                  <div className="flex items-center justify-between text-sm mb-4">
+                    <div className="flex items-center gap-1 text-muted-foreground">
+                      <Clock className="w-3.5 h-3.5" />
+                      <span>{schedule.length > 0 ? schedule.slice(0, 2).join(', ') : 'Schedule not set'}</span>
+                    </div>
+                    <span className={available ? 'text-green-600 font-medium' : 'text-muted-foreground'}>
+                      {available ? '● Available Now' : '● Unavailable'}
+                    </span>
+                  </div>
+
+                  {/* Contact Section */}
+                  {isVerified ? (
+                    <div className="flex gap-2">
+                      {pandit.phone && (
+                        <Button
+                          variant="hero"
+                          size="sm"
+                          className="flex-1"
+                          onClick={() => window.open(`tel:${pandit.phone}`, '_self')}
+                        >
                           <Phone className="w-4 h-4 mr-1" />
-                          Call Now
+                          Call
                         </Button>
-                        <Button variant="secondary" size="sm" className="flex-1">
+                      )}
+                      {pandit.whatsapp && (
+                        <Button
+                          variant="golden"
+                          size="sm"
+                          className="flex-1"
+                          onClick={() => window.open(`https://wa.me/${pandit.whatsapp?.replace(/\D/g, '')}`, '_blank')}
+                        >
                           <MessageCircle className="w-4 h-4 mr-1" />
                           WhatsApp
                         </Button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <div className="blur-lock pointer-events-none">
+                        <div className="flex gap-2">
+                          <Button variant="default" size="sm" className="flex-1">
+                            <Phone className="w-4 h-4 mr-1" />
+                            Call
+                          </Button>
+                          <Button variant="secondary" size="sm" className="flex-1">
+                            <MessageCircle className="w-4 h-4 mr-1" />
+                            WhatsApp
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="absolute inset-0 flex items-center justify-center bg-background/50 rounded-lg">
+                        <Button variant="locked" size="sm" className="gap-2" onClick={handleContact}>
+                          <Lock className="w-4 h-4" />
+                          Verify to Contact
+                        </Button>
                       </div>
                     </div>
-                    <div className="absolute inset-0 flex items-center justify-center bg-background/50 rounded-lg">
-                      <Button variant="locked" size="sm" className="gap-2" onClick={handleContact}>
-                        <Lock className="w-4 h-4" />
-                        Verify to Contact
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </motion.div>
-            ))}
+                  )}
+                </motion.div>
+              );
+            })}
           </div>
 
-          {filteredPandits.length === 0 && (
+          {!isLoading && filteredPandits.length === 0 && (
             <div className="text-center py-12">
               <p className="text-muted-foreground">No Panditji found matching your criteria.</p>
               <Button variant="outline" className="mt-4" onClick={() => {
