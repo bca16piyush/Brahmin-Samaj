@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
-import { ArrowRight, CheckCircle, User, Shield, FileCheck } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowRight, CheckCircle, User, Shield, FileCheck, Mail, Lock, Phone } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,55 +19,78 @@ type Step = 1 | 2 | 3;
 
 export default function Register() {
   const [step, setStep] = useState<Step>(1);
-  const [mobileNumber, setMobileNumber] = useState('');
-  const [otp, setOtp] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
-  const [formData, setFormData] = useState({
+  const [isLoading, setIsLoading] = useState(false);
+  const [signUpData, setSignUpData] = useState({
     name: '',
+    email: '',
+    password: '',
+    mobile: '',
+  });
+  const [formData, setFormData] = useState({
     gotra: '',
-    fatherName: '',
-    nativeVillage: '',
-    referenceName: '',
-    referenceMobile: '',
+    father_name: '',
+    native_village: '',
+    reference_person: '',
+    reference_mobile: '',
   });
   const { toast } = useToast();
-  const { login, submitVerification } = useAuth();
+  const { signUp, submitVerification } = useAuth();
+  const navigate = useNavigate();
 
-  const handleSendOtp = () => {
-    if (mobileNumber.length >= 10) {
-      setOtpSent(true);
-      toast({
-        title: 'OTP Sent',
-        description: `Verification code sent to ${mobileNumber}`,
-      });
-    }
-  };
-
-  const handleVerifyOtp = () => {
-    if (otp.length === 6) {
-      login(mobileNumber);
-      setStep(2);
-      toast({
-        title: 'Phone Verified',
-        description: 'Your mobile number has been verified successfully.',
-      });
-    }
-  };
-
-  const handleSubmitVerification = (e: React.FormEvent) => {
+  const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    submitVerification({
-      name: formData.name,
+    setIsLoading(true);
+    
+    const { error } = await signUp(
+      signUpData.email,
+      signUpData.password,
+      signUpData.name,
+      signUpData.mobile
+    );
+    
+    if (error) {
+      toast({
+        title: 'Registration Failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: 'Account Created',
+        description: 'Please complete your verification details.',
+      });
+      setStep(2);
+    }
+    setIsLoading(false);
+  };
+
+  const handleSubmitVerification = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    
+    const { error } = await submitVerification({
+      name: signUpData.name,
       gotra: formData.gotra,
-      fatherName: formData.fatherName,
-      nativeVillage: formData.nativeVillage,
-      referencePerson: `${formData.referenceName} (${formData.referenceMobile})`,
+      father_name: formData.father_name,
+      native_village: formData.native_village,
+      reference_person: formData.reference_person,
+      reference_mobile: formData.reference_mobile,
     });
-    setStep(3);
-    toast({
-      title: 'Verification Submitted',
-      description: 'Your request is being reviewed by our admin team.',
-    });
+    
+    if (error) {
+      toast({
+        title: 'Submission Failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } else {
+      setStep(3);
+      toast({
+        title: 'Verification Submitted',
+        description: 'Your request is being reviewed by our admin team.',
+      });
+    }
+    setIsLoading(false);
   };
 
   return (
@@ -78,7 +101,7 @@ export default function Register() {
             {/* Progress Steps */}
             <div className="flex items-center justify-center gap-4 mb-12">
               {[
-                { num: 1, label: 'Mobile', icon: User },
+                { num: 1, label: 'Account', icon: User },
                 { num: 2, label: 'Verification', icon: Shield },
                 { num: 3, label: 'Complete', icon: FileCheck },
               ].map(({ num, label, icon: Icon }, index) => (
@@ -96,7 +119,7 @@ export default function Register() {
               ))}
             </div>
 
-            {/* Step 1: Mobile Verification */}
+            {/* Step 1: Account Creation */}
             {step === 1 && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -108,66 +131,75 @@ export default function Register() {
                     Join Our Community
                   </h1>
                   <p className="text-muted-foreground">
-                    Verify your mobile number to get started
+                    Create your account to get started
                   </p>
                 </div>
 
-                <div className="space-y-6">
+                <form onSubmit={handleSignUp} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="mobile">Mobile Number</Label>
+                    <Label htmlFor="name">Full Name</Label>
                     <Input
-                      id="mobile"
-                      type="tel"
-                      placeholder="+91 98765 43210"
-                      value={mobileNumber}
-                      onChange={(e) => setMobileNumber(e.target.value)}
-                      className="text-lg"
+                      id="name"
+                      value={signUpData.name}
+                      onChange={(e) => setSignUpData({ ...signUpData, name: e.target.value })}
+                      placeholder="Your full name"
+                      required
                     />
                   </div>
-
-                  {!otpSent ? (
-                    <Button
-                      variant="hero"
-                      className="w-full"
-                      onClick={handleSendOtp}
-                      disabled={mobileNumber.length < 10}
-                    >
-                      Send OTP
-                      <ArrowRight className="w-4 h-4 ml-2" />
-                    </Button>
-                  ) : (
-                    <>
-                      <div className="space-y-2">
-                        <Label htmlFor="otp">Enter OTP</Label>
-                        <Input
-                          id="otp"
-                          type="text"
-                          placeholder="Enter 6-digit OTP"
-                          value={otp}
-                          onChange={(e) => setOtp(e.target.value)}
-                          maxLength={6}
-                          className="text-lg tracking-widest text-center"
-                        />
-                        <p className="text-sm text-muted-foreground text-center">
-                          Didn't receive? <button className="text-primary hover:underline" onClick={handleSendOtp}>Resend</button>
-                        </p>
-                      </div>
-                      <Button
-                        variant="hero"
-                        className="w-full"
-                        onClick={handleVerifyOtp}
-                        disabled={otp.length !== 6}
-                      >
-                        Verify & Continue
-                        <ArrowRight className="w-4 h-4 ml-2" />
-                      </Button>
-                    </>
-                  )}
-
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="email"
+                        type="email"
+                        value={signUpData.email}
+                        onChange={(e) => setSignUpData({ ...signUpData, email: e.target.value })}
+                        placeholder="your@email.com"
+                        className="pl-10"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="mobile">Mobile Number</Label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="mobile"
+                        type="tel"
+                        value={signUpData.mobile}
+                        onChange={(e) => setSignUpData({ ...signUpData, mobile: e.target.value })}
+                        placeholder="+91 98765 43210"
+                        className="pl-10"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="password"
+                        type="password"
+                        value={signUpData.password}
+                        onChange={(e) => setSignUpData({ ...signUpData, password: e.target.value })}
+                        placeholder="••••••••"
+                        className="pl-10"
+                        required
+                        minLength={6}
+                      />
+                    </div>
+                  </div>
+                  <Button variant="hero" className="w-full" type="submit" disabled={isLoading}>
+                    {isLoading ? 'Creating Account...' : 'Create Account'}
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
                   <p className="text-sm text-center text-muted-foreground">
                     Already a member? <Link to="/login" className="text-primary hover:underline">Login</Link>
                   </p>
-                </div>
+                </form>
               </motion.div>
             )}
 
@@ -193,16 +225,6 @@ export default function Register() {
                 <form onSubmit={handleSubmitVerification} className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="name">Full Name *</Label>
-                      <Input
-                        id="name"
-                        required
-                        value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        placeholder="Enter your full name"
-                      />
-                    </div>
-                    <div className="space-y-2">
                       <Label htmlFor="gotra">Gotra *</Label>
                       <Select
                         value={formData.gotra}
@@ -218,29 +240,27 @@ export default function Register() {
                         </SelectContent>
                       </Select>
                     </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="fatherName">Father's Name *</Label>
                       <Input
                         id="fatherName"
                         required
-                        value={formData.fatherName}
-                        onChange={(e) => setFormData({ ...formData, fatherName: e.target.value })}
+                        value={formData.father_name}
+                        onChange={(e) => setFormData({ ...formData, father_name: e.target.value })}
                         placeholder="Enter father's name"
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="village">Native Village *</Label>
-                      <Input
-                        id="village"
-                        required
-                        value={formData.nativeVillage}
-                        onChange={(e) => setFormData({ ...formData, nativeVillage: e.target.value })}
-                        placeholder="Enter native village"
-                      />
-                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="village">Native Village *</Label>
+                    <Input
+                      id="village"
+                      required
+                      value={formData.native_village}
+                      onChange={(e) => setFormData({ ...formData, native_village: e.target.value })}
+                      placeholder="Enter native village"
+                    />
                   </div>
 
                   <div className="border-t border-border pt-6">
@@ -253,8 +273,8 @@ export default function Register() {
                         <Label htmlFor="refName">Reference Name</Label>
                         <Input
                           id="refName"
-                          value={formData.referenceName}
-                          onChange={(e) => setFormData({ ...formData, referenceName: e.target.value })}
+                          value={formData.reference_person}
+                          onChange={(e) => setFormData({ ...formData, reference_person: e.target.value })}
                           placeholder="Name of reference person"
                         />
                       </div>
@@ -263,16 +283,16 @@ export default function Register() {
                         <Input
                           id="refMobile"
                           type="tel"
-                          value={formData.referenceMobile}
-                          onChange={(e) => setFormData({ ...formData, referenceMobile: e.target.value })}
+                          value={formData.reference_mobile}
+                          onChange={(e) => setFormData({ ...formData, reference_mobile: e.target.value })}
                           placeholder="Mobile number"
                         />
                       </div>
                     </div>
                   </div>
 
-                  <Button variant="hero" type="submit" className="w-full">
-                    Submit for Verification
+                  <Button variant="hero" type="submit" className="w-full" disabled={isLoading}>
+                    {isLoading ? 'Submitting...' : 'Submit for Verification'}
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
                 </form>
@@ -302,14 +322,10 @@ export default function Register() {
                 </p>
                 <div className="flex flex-col sm:flex-row gap-3 justify-center">
                   <Link to="/">
-                    <Button variant="hero">
-                      Explore Platform
-                    </Button>
+                    <Button variant="hero">Explore Platform</Button>
                   </Link>
                   <Link to="/panditji">
-                    <Button variant="outline">
-                      Browse Panditji
-                    </Button>
+                    <Button variant="outline">Browse Panditji</Button>
                   </Link>
                 </div>
               </motion.div>

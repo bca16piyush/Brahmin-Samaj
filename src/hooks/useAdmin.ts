@@ -1,0 +1,335 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import type { Database } from '@/integrations/supabase/types';
+
+type Profile = Database['public']['Tables']['profiles']['Row'];
+type Pandit = Database['public']['Tables']['pandits']['Row'];
+type InKindDonation = Database['public']['Tables']['in_kind_donations']['Row'];
+type News = Database['public']['Tables']['news']['Row'];
+type Event = Database['public']['Tables']['events']['Row'];
+
+export function usePendingVerifications() {
+  return useQuery({
+    queryKey: ['pending-verifications'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('verification_status', 'pending')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data as Profile[];
+    },
+  });
+}
+
+export function useApproveVerification() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (userId: string) => {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          verification_status: 'verified',
+          rejection_reason: null,
+        })
+        .eq('id', userId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pending-verifications'] });
+      toast({
+        title: 'User Approved',
+        description: 'The user has been verified successfully.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+export function useRejectVerification() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ userId, reason }: { userId: string; reason: string }) => {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          verification_status: 'rejected',
+          rejection_reason: reason,
+        })
+        .eq('id', userId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pending-verifications'] });
+      toast({
+        title: 'User Rejected',
+        description: 'The verification request has been rejected.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+export function usePandits() {
+  return useQuery({
+    queryKey: ['admin-pandits'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('pandits')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data as Pandit[];
+    },
+  });
+}
+
+export function useCreatePandit() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (pandit: Omit<Pandit, 'id' | 'created_at' | 'updated_at'>) => {
+      const { error } = await supabase
+        .from('pandits')
+        .insert(pandit);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-pandits'] });
+      toast({
+        title: 'Pandit Added',
+        description: 'The pandit profile has been created successfully.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+export function useUpdatePandit() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<Pandit> }) => {
+      const { error } = await supabase
+        .from('pandits')
+        .update(data)
+        .eq('id', id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-pandits'] });
+      toast({
+        title: 'Pandit Updated',
+        description: 'The pandit profile has been updated successfully.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+export function useInKindDonations() {
+  return useQuery({
+    queryKey: ['admin-inkind-donations'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('in_kind_donations')
+        .select(`
+          *,
+          profiles:user_id (name, mobile)
+        `)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export function useUpdateDonationStatus() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const { error } = await supabase
+        .from('in_kind_donations')
+        .update({
+          status,
+          received_at: status === 'received' ? new Date().toISOString() : null,
+        })
+        .eq('id', id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-inkind-donations'] });
+      toast({
+        title: 'Status Updated',
+        description: 'The donation status has been updated.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+export function useNews() {
+  return useQuery({
+    queryKey: ['admin-news'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('news')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data as News[];
+    },
+  });
+}
+
+export function useCreateNews() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (news: Omit<News, 'id' | 'created_at' | 'updated_at'>) => {
+      const { error } = await supabase
+        .from('news')
+        .insert(news);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-news'] });
+      toast({
+        title: 'News Published',
+        description: 'The news article has been published successfully.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+export function useEvents() {
+  return useQuery({
+    queryKey: ['admin-events'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .order('event_date', { ascending: true });
+      
+      if (error) throw error;
+      return data as Event[];
+    },
+  });
+}
+
+export function useCreateEvent() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (event: Omit<Event, 'id' | 'created_at' | 'updated_at'>) => {
+      const { error } = await supabase
+        .from('events')
+        .insert(event);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-events'] });
+      toast({
+        title: 'Event Created',
+        description: 'The event has been created successfully.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+export function useUpdateEvent() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<Event> }) => {
+      const { error } = await supabase
+        .from('events')
+        .update(data)
+        .eq('id', id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-events'] });
+      toast({
+        title: 'Event Updated',
+        description: 'The event has been updated successfully.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}

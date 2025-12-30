@@ -18,7 +18,7 @@ const navLinks = [
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
-  const { isAuthenticated, user, logout } = useAuth();
+  const { isAuthenticated, profile, signOut, isAdmin } = useAuth();
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b border-border">
@@ -58,13 +58,18 @@ export function Navbar() {
           <div className="hidden lg:flex items-center gap-3">
             {isAuthenticated ? (
               <div className="flex items-center gap-3">
+                {isAdmin && (
+                  <Link to="/admin">
+                    <Button variant="outline" size="sm">Admin</Button>
+                  </Link>
+                )}
                 <div className="text-right">
-                  <p className="text-sm font-medium">{user?.name}</p>
+                  <p className="text-sm font-medium">{profile?.name}</p>
                   <p className="text-xs text-muted-foreground capitalize">
-                    {user?.verificationStatus === 'verified' ? '✓ Verified' : user?.verificationStatus}
+                    {profile?.verification_status === 'verified' ? '✓ Verified' : profile?.verification_status}
                   </p>
                 </div>
-                <Button variant="outline" size="sm" onClick={logout}>
+                <Button variant="outline" size="sm" onClick={signOut}>
                   Logout
                 </Button>
               </div>
@@ -123,9 +128,14 @@ export function Navbar() {
                   {isAuthenticated ? (
                     <>
                       <p className="text-sm text-muted-foreground">
-                        Logged in as <span className="font-medium text-foreground">{user?.name}</span>
+                        Logged in as <span className="font-medium text-foreground">{profile?.name}</span>
                       </p>
-                      <Button variant="outline" className="w-full" onClick={() => { logout(); setIsOpen(false); }}>
+                      {isAdmin && (
+                        <Link to="/admin" onClick={() => setIsOpen(false)}>
+                          <Button variant="outline" className="w-full mb-2">Admin Dashboard</Button>
+                        </Link>
+                      )}
+                      <Button variant="outline" className="w-full" onClick={() => { signOut(); setIsOpen(false); }}>
                         Logout
                       </Button>
                     </>
