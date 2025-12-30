@@ -31,6 +31,13 @@ export function useApproveVerification() {
 
   return useMutation({
     mutationFn: async (userId: string) => {
+      // Get user profile for notification
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('name')
+        .eq('id', userId)
+        .single();
+
       const { error } = await supabase
         .from('profiles')
         .update({
@@ -40,6 +47,20 @@ export function useApproveVerification() {
         .eq('id', userId);
       
       if (error) throw error;
+
+      // Send WhatsApp notification to user
+      try {
+        await supabase.functions.invoke('send-whatsapp', {
+          body: {
+            type: 'verification',
+            userId,
+            title: 'Verification Approved! ✅',
+            body: `Congratulations ${profile?.name || 'Member'}! Your verification has been approved. You now have full access to all community features including live streams, full member profiles, and exclusive content.`,
+          },
+        });
+      } catch (notifyError) {
+        console.error('Failed to send WhatsApp notification:', notifyError);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pending-verifications'] });
@@ -64,6 +85,13 @@ export function useRejectVerification() {
 
   return useMutation({
     mutationFn: async ({ userId, reason }: { userId: string; reason: string }) => {
+      // Get user profile for notification
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('name')
+        .eq('id', userId)
+        .single();
+
       const { error } = await supabase
         .from('profiles')
         .update({
@@ -73,6 +101,20 @@ export function useRejectVerification() {
         .eq('id', userId);
       
       if (error) throw error;
+
+      // Send WhatsApp notification to user
+      try {
+        await supabase.functions.invoke('send-whatsapp', {
+          body: {
+            type: 'verification',
+            userId,
+            title: 'Verification Update',
+            body: `Dear ${profile?.name || 'Member'}, your verification request could not be approved.\n\nReason: ${reason}\n\nPlease update your profile and resubmit for verification.`,
+          },
+        });
+      } catch (notifyError) {
+        console.error('Failed to send WhatsApp notification:', notifyError);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pending-verifications'] });
@@ -242,6 +284,21 @@ export function useCreateNews() {
         .insert(news);
       
       if (error) throw error;
+
+      // Send WhatsApp notification if enabled
+      if (news.send_notification) {
+        try {
+          await supabase.functions.invoke('send-whatsapp', {
+            body: {
+              type: 'announcement',
+              title: news.is_urgent ? `🚨 URGENT: ${news.title}` : news.title,
+              body: news.content,
+            },
+          });
+        } catch (notifyError) {
+          console.error('Failed to send WhatsApp notification:', notifyError);
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-news'] });

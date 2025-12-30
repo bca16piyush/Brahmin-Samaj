@@ -1,34 +1,12 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Play, Calendar, Clock, Bell, ExternalLink, Lock } from 'lucide-react';
+import { Play, Calendar, Clock, Bell, Lock, Video } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLiveStream } from '@/hooks/useLiveStream';
 import { Link } from 'react-router-dom';
-
-const upcomingEvents = [
-  {
-    id: 1,
-    title: 'Maha Shivaratri Special Puja',
-    date: '2025-02-26',
-    time: '18:00',
-    description: 'Live broadcast of the grand Maha Shivaratri celebrations.',
-  },
-  {
-    id: 2,
-    title: 'Weekly Satyanarayan Katha',
-    date: '2025-01-05',
-    time: '10:00',
-    description: 'Join us for the weekly Satyanarayan Puja and Katha.',
-  },
-  {
-    id: 3,
-    title: 'Makar Sankranti Celebrations',
-    date: '2025-01-14',
-    time: '06:00',
-    description: 'Early morning puja and community celebrations.',
-  },
-];
+import { Skeleton } from '@/components/ui/skeleton';
 
 function CountdownTimer({ targetDate }: { targetDate: string }) {
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
@@ -70,9 +48,7 @@ function CountdownTimer({ targetDate }: { targetDate: string }) {
 
 export default function Live() {
   const { isVerified } = useAuth();
-  const [isLive, setIsLive] = useState(false); // Simulated - would be from API
-
-  const nextEvent = upcomingEvents[0];
+  const { liveEvent, upcomingEvents, nextEvent, isLoading, isLive } = useLiveStream();
 
   return (
     <Layout>
@@ -83,10 +59,14 @@ export default function Live() {
             <motion.span
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-destructive/10 text-destructive text-sm font-medium mb-4"
+              className={`inline-flex items-center gap-2 px-4 py-1 rounded-full text-sm font-medium mb-4 ${
+                isLive 
+                  ? 'bg-destructive/10 text-destructive' 
+                  : 'bg-muted text-muted-foreground'
+              }`}
             >
-              <span className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
-              Live Streaming
+              {isLive && <span className="w-2 h-2 rounded-full bg-destructive animate-pulse" />}
+              {isLive ? 'Live Now' : 'Live Streaming'}
             </motion.span>
             <motion.h1
               initial={{ opacity: 0, y: 20 }}
@@ -114,14 +94,21 @@ export default function Live() {
             className="max-w-4xl mx-auto mb-12"
           >
             <div className="relative aspect-video rounded-2xl overflow-hidden bg-maroon shadow-temple">
-              {isLive && isVerified ? (
-                // YouTube Embed Placeholder
-                <iframe
-                  src="https://www.youtube.com/embed/dQw4w9WgXcQ"
-                  className="w-full h-full"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
+              {isLoading ? (
+                <Skeleton className="w-full h-full" />
+              ) : isLive && isVerified && liveEvent?.youtube_live_url ? (
+                <>
+                  <iframe
+                    src={liveEvent.youtube_live_url}
+                    className="w-full h-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                  <div className="absolute top-4 left-4 flex items-center gap-2 px-3 py-1 bg-destructive text-destructive-foreground rounded-full text-sm font-medium">
+                    <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                    LIVE
+                  </div>
+                </>
               ) : (
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8">
                   {!isVerified ? (
@@ -144,7 +131,7 @@ export default function Live() {
                   ) : (
                     <>
                       <div className="w-20 h-20 rounded-full bg-primary-foreground/10 flex items-center justify-center mb-6">
-                        <Play className="w-10 h-10 text-primary-foreground/50" />
+                        <Video className="w-10 h-10 text-primary-foreground/50" />
                       </div>
                       <h2 className="font-heading text-2xl font-bold text-primary-foreground mb-4">
                         No Live Stream
@@ -157,86 +144,118 @@ export default function Live() {
                 </div>
               )}
             </div>
+
+            {isLive && liveEvent && (
+              <div className="mt-4 p-4 rounded-xl bg-card border border-border">
+                <h3 className="font-heading text-lg font-semibold">{liveEvent.title}</h3>
+                {liveEvent.description && (
+                  <p className="text-sm text-muted-foreground mt-1">{liveEvent.description}</p>
+                )}
+              </div>
+            )}
           </motion.div>
 
           {/* Next Event Countdown */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="max-w-2xl mx-auto mb-16"
-          >
-            <div className="p-8 rounded-2xl bg-card border border-border shadow-temple text-center">
-              <h3 className="font-heading text-xl font-semibold mb-2">Next Event</h3>
-              <p className="text-2xl font-heading font-bold text-gradient-saffron mb-6">
-                {nextEvent.title}
-              </p>
-              
-              <CountdownTimer targetDate={`${nextEvent.date}T${nextEvent.time}`} />
-              
-              <div className="flex items-center justify-center gap-4 mt-6 text-muted-foreground">
-                <span className="flex items-center gap-1 text-sm">
-                  <Calendar className="w-4 h-4" />
-                  {new Date(nextEvent.date).toLocaleDateString('en-IN', {
-                    weekday: 'long',
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                  })}
-                </span>
-                <span className="flex items-center gap-1 text-sm">
-                  <Clock className="w-4 h-4" />
-                  {nextEvent.time} IST
-                </span>
-              </div>
-
-              <Button variant="golden" className="mt-6">
-                <Bell className="w-4 h-4 mr-2" />
-                Add to Calendar
-              </Button>
-            </div>
-          </motion.div>
-
-          {/* Upcoming Events */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-          >
-            <h3 className="font-heading text-2xl font-bold text-center mb-8">
-              Upcoming Events
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-              {upcomingEvents.map((event, index) => (
-                <div
-                  key={event.id}
-                  className="p-6 rounded-xl bg-card border border-border hover:border-primary/30 hover:shadow-lg transition-all"
-                >
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                      <Play className="w-6 h-6 text-primary" />
-                    </div>
-                    {index === 0 && (
-                      <span className="text-xs px-2 py-1 rounded-full bg-gold/20 text-gold font-medium">
-                        Next
-                      </span>
-                    )}
-                  </div>
-                  <h4 className="font-heading font-semibold mb-2">{event.title}</h4>
-                  <p className="text-sm text-muted-foreground mb-4">{event.description}</p>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Calendar className="w-3 h-3" />
-                    {new Date(event.date).toLocaleDateString('en-IN', {
-                      month: 'short',
+          {nextEvent && !isLive && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="max-w-2xl mx-auto mb-16"
+            >
+              <div className="p-8 rounded-2xl bg-card border border-border shadow-temple text-center">
+                <h3 className="font-heading text-xl font-semibold mb-2">Next Event</h3>
+                <p className="text-2xl font-heading font-bold text-gradient-saffron mb-6">
+                  {nextEvent.title}
+                </p>
+                
+                <CountdownTimer targetDate={nextEvent.event_date} />
+                
+                <div className="flex items-center justify-center gap-4 mt-6 text-muted-foreground">
+                  <span className="flex items-center gap-1 text-sm">
+                    <Calendar className="w-4 h-4" />
+                    {new Date(nextEvent.event_date).toLocaleDateString('en-IN', {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'long',
                       day: 'numeric',
                     })}
-                    <Clock className="w-3 h-3 ml-2" />
-                    {event.time} IST
-                  </div>
+                  </span>
+                  <span className="flex items-center gap-1 text-sm">
+                    <Clock className="w-4 h-4" />
+                    {new Date(nextEvent.event_date).toLocaleTimeString('en-IN', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })} IST
+                  </span>
                 </div>
-              ))}
-            </div>
-          </motion.div>
+
+                <Button variant="golden" className="mt-6">
+                  <Bell className="w-4 h-4 mr-2" />
+                  Get Notified
+                </Button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Upcoming Events */}
+          {upcomingEvents.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+            >
+              <h3 className="font-heading text-2xl font-bold text-center mb-8">
+                Upcoming Events
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+                {upcomingEvents.slice(0, 6).map((event, index) => (
+                  <div
+                    key={event.id}
+                    className="p-6 rounded-xl bg-card border border-border hover:border-primary/30 hover:shadow-lg transition-all"
+                  >
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                        <Play className="w-6 h-6 text-primary" />
+                      </div>
+                      {index === 0 && (
+                        <span className="text-xs px-2 py-1 rounded-full bg-gold/20 text-gold font-medium">
+                          Next
+                        </span>
+                      )}
+                    </div>
+                    <h4 className="font-heading font-semibold mb-2">{event.title}</h4>
+                    <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+                      {event.description || 'Join us for this upcoming event.'}
+                    </p>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Calendar className="w-3 h-3" />
+                      {new Date(event.event_date).toLocaleDateString('en-IN', {
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                      <Clock className="w-3 h-3 ml-2" />
+                      {new Date(event.event_date).toLocaleTimeString('en-IN', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {upcomingEvents.length === 0 && !isLoading && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+              className="text-center py-12"
+            >
+              <p className="text-muted-foreground">No upcoming events scheduled. Check back soon!</p>
+            </motion.div>
+          )}
         </div>
       </section>
     </Layout>
