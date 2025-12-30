@@ -80,6 +80,18 @@ export function RegistrationManager() {
     },
   });
 
+  // Fetch all registrations for overall stats (when no event selected)
+  const { data: allRegistrations } = useQuery({
+    queryKey: ['admin-all-registrations'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('event_registrations')
+        .select('*');
+      if (error) throw error;
+      return data;
+    },
+  });
+
   // Fetch registrations for selected event using admin-specific query
   const { data: registrations, isLoading: registrationsLoading } = useAdminEventRegistrations(selectedEventId || undefined);
   const updateAttendance = useUpdateAttendance();
@@ -88,6 +100,12 @@ export function RegistrationManager() {
   const selectedEvent = events?.find(e => e.id === selectedEventId);
   const upcomingEvents = events?.filter(e => new Date(e.event_date) >= new Date()) || [];
   const pastEvents = events?.filter(e => new Date(e.event_date) < new Date()) || [];
+
+  // Overall stats calculations
+  const totalRegistrations = allRegistrations?.length || 0;
+  const totalAttended = allRegistrations?.filter(r => r.attended).length || 0;
+  const totalRemindersSent = allRegistrations?.filter(r => r.reminder_sent).length || 0;
+  const eventsWithRegistrations = new Set(allRegistrations?.map(r => r.event_id) || []).size;
 
   const filteredRegistrations = registrations?.filter(reg => {
     if (!searchTerm) return true;
@@ -714,14 +732,72 @@ export function RegistrationManager() {
         </Card>
       )}
 
-      {/* Empty State */}
+      {/* Overall Summary when no event selected */}
       {!selectedEventId && (
-        <Card className="border-border">
-          <CardContent className="py-12 text-center">
-            <Calendar className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">Select an event to view and manage registrations</p>
-          </CardContent>
-        </Card>
+        <div className="space-y-6">
+          {/* Overall Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card className="border-border">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Users className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{totalRegistrations}</p>
+                    <p className="text-sm text-muted-foreground">Total Registrations</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border-border">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
+                    <CheckCircle className="w-5 h-5 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{totalAttended}</p>
+                    <p className="text-sm text-muted-foreground">Total Attended</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border-border">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                    <Bell className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{totalRemindersSent}</p>
+                    <p className="text-sm text-muted-foreground">Reminders Sent</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border-border">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-gold/10 flex items-center justify-center">
+                    <Calendar className="w-5 h-5 text-gold" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{eventsWithRegistrations}</p>
+                    <p className="text-sm text-muted-foreground">Events with Registrations</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card className="border-border">
+            <CardContent className="py-8 text-center">
+              <Calendar className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+              <p className="text-muted-foreground">Select an event above to view and manage its registrations</p>
+            </CardContent>
+          </Card>
+        </div>
       )}
     </div>
   );

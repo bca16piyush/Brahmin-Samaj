@@ -224,6 +224,12 @@ export function EventManager() {
     );
   }
 
+  const now = new Date();
+  const upcomingCount = events?.filter(e => new Date(e.event_date) >= now).length || 0;
+  const pastCount = events?.filter(e => new Date(e.event_date) < now).length || 0;
+  const liveCount = events?.filter(e => e.is_live).length || 0;
+  const featuredCount = events?.filter(e => e.is_featured).length || 0;
+
   return (
     <>
       <div className="flex justify-between items-center mb-6">
@@ -232,6 +238,75 @@ export function EventManager() {
           <Plus className="w-4 h-4 mr-2" />
           Add Event
         </Button>
+      </div>
+
+      {/* Events Summary Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+        <Card className="border-border">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Calendar className="w-4 h-4 text-primary" />
+              </div>
+              <div>
+                <p className="text-xl font-bold">{events?.length || 0}</p>
+                <p className="text-xs text-muted-foreground">Total</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-border">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center">
+                <Calendar className="w-4 h-4 text-green-600" />
+              </div>
+              <div>
+                <p className="text-xl font-bold">{upcomingCount}</p>
+                <p className="text-xs text-muted-foreground">Upcoming</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-border">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
+                <Calendar className="w-4 h-4 text-muted-foreground" />
+              </div>
+              <div>
+                <p className="text-xl font-bold">{pastCount}</p>
+                <p className="text-xs text-muted-foreground">Past</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-border">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-destructive/10 flex items-center justify-center">
+                <Video className="w-4 h-4 text-destructive" />
+              </div>
+              <div>
+                <p className="text-xl font-bold">{liveCount}</p>
+                <p className="text-xs text-muted-foreground">Live</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-border">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-gold/10 flex items-center justify-center">
+                <Star className="w-4 h-4 text-gold" />
+              </div>
+              <div>
+                <p className="text-xl font-bold">{featuredCount}</p>
+                <p className="text-xs text-muted-foreground">Featured</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="space-y-4">
