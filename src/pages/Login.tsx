@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, User } from 'lucide-react';
+import { ArrowRight, User, Mail, Lock } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,32 +10,33 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function Login() {
-  const [mobileNumber, setMobileNumber] = useState('');
-  const [otp, setOtp] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const { login } = useAuth();
+  const { signIn } = useAuth();
   const navigate = useNavigate();
 
-  const handleSendOtp = () => {
-    if (mobileNumber.length >= 10) {
-      setOtpSent(true);
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    
+    const { error } = await signIn(email, password);
+    
+    if (error) {
       toast({
-        title: 'OTP Sent',
-        description: `Verification code sent to ${mobileNumber}`,
+        title: 'Login Failed',
+        description: error.message,
+        variant: 'destructive',
       });
-    }
-  };
-
-  const handleLogin = () => {
-    if (otp.length === 6) {
-      login(mobileNumber);
+    } else {
       toast({
         title: 'Welcome Back!',
         description: 'You have successfully logged in.',
       });
       navigate('/');
     }
+    setIsLoading(false);
   };
 
   return (
@@ -60,57 +61,48 @@ export default function Login() {
                 </p>
               </div>
 
-              <div className="space-y-6">
+              <form onSubmit={handleLogin} className="space-y-6">
                 <div className="space-y-2">
-                  <Label htmlFor="mobile">Mobile Number</Label>
-                  <Input
-                    id="mobile"
-                    type="tel"
-                    placeholder="+91 98765 43210"
-                    value={mobileNumber}
-                    onChange={(e) => setMobileNumber(e.target.value)}
-                    className="text-lg"
-                  />
+                  <Label htmlFor="email">Email</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="your@email.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="pl-10"
+                      required
+                    />
+                  </div>
                 </div>
 
-                {!otpSent ? (
-                  <Button
-                    variant="hero"
-                    className="w-full"
-                    onClick={handleSendOtp}
-                    disabled={mobileNumber.length < 10}
-                  >
-                    Send OTP
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                  </Button>
-                ) : (
-                  <>
-                    <div className="space-y-2">
-                      <Label htmlFor="otp">Enter OTP</Label>
-                      <Input
-                        id="otp"
-                        type="text"
-                        placeholder="Enter 6-digit OTP"
-                        value={otp}
-                        onChange={(e) => setOtp(e.target.value)}
-                        maxLength={6}
-                        className="text-lg tracking-widest text-center"
-                      />
-                      <p className="text-sm text-muted-foreground text-center">
-                        Didn't receive? <button className="text-primary hover:underline" onClick={handleSendOtp}>Resend</button>
-                      </p>
-                    </div>
-                    <Button
-                      variant="hero"
-                      className="w-full"
-                      onClick={handleLogin}
-                      disabled={otp.length !== 6}
-                    >
-                      Login
-                      <ArrowRight className="w-4 h-4 ml-2" />
-                    </Button>
-                  </>
-                )}
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="pl-10"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <Button
+                  variant="hero"
+                  className="w-full"
+                  type="submit"
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Logging in...' : 'Login'}
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
 
                 <div className="text-center pt-4 border-t border-border">
                   <p className="text-sm text-muted-foreground">
@@ -120,7 +112,7 @@ export default function Login() {
                     </Link>
                   </p>
                 </div>
-              </div>
+              </form>
             </motion.div>
           </div>
         </div>
