@@ -31,7 +31,7 @@ const galleryImages = [
 ];
 
 export function GalleryPreview() {
-  const { isVerified } = useAuth();
+  const { user } = useAuth();
 
   return (
     <section className="py-20 lg:py-28 bg-cream">
@@ -89,12 +89,18 @@ export function GalleryPreview() {
                 <p className="text-xs text-gold mb-1">{image.event}</p>
                 <p className="text-sm font-medium text-primary-foreground">{image.title}</p>
               </div>
-              {!isVerified && (
-                <div className="absolute top-3 right-3 bg-background/90 rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Lock className="w-4 h-4 text-muted-foreground" />
+              {/* Lock overlay for non-authenticated users */}
+              {!user && (
+                <div className="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-[2px]">
+                  <div className="text-center p-4">
+                    <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mx-auto mb-2">
+                      <Lock className="w-6 h-6 text-muted-foreground" />
+                    </div>
+                    <p className="text-xs text-muted-foreground">Sign up to view</p>
+                  </div>
                 </div>
               )}
-              {isVerified && (
+              {user && (
                 <button className="absolute top-3 right-3 bg-background/90 rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background">
                   <Download className="w-4 h-4 text-foreground" />
                 </button>
@@ -103,16 +109,16 @@ export function GalleryPreview() {
           ))}
         </div>
 
-        {!isVerified && (
+        {!user && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             className="text-center mt-8"
           >
-            <p className="text-muted-foreground text-sm mb-4">
+            <p className="text-muted-foreground text-sm">
               <Lock className="w-4 h-4 inline mr-1" />
-              Full resolution downloads available for verified members
+              <Link to="/login" className="text-primary hover:underline">Sign up</Link> to view and download event photos
             </p>
           </motion.div>
         )}
