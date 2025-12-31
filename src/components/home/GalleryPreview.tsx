@@ -1,37 +1,31 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Download, Lock } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-
-const galleryImages = [
-  {
-    id: 1,
-    src: 'https://images.unsplash.com/photo-1609766418204-94aae0ecfdfc?w=400&h=300&fit=crop',
-    title: 'Diwali Celebration 2024',
-    event: 'Diwali',
-  },
-  {
-    id: 2,
-    src: 'https://images.unsplash.com/photo-1545696563-af4afe23829a?w=400&h=300&fit=crop',
-    title: 'Navratri Garba Night',
-    event: 'Navratri',
-  },
-  {
-    id: 3,
-    src: 'https://images.unsplash.com/photo-1532375810709-75b1da00537c?w=400&h=300&fit=crop',
-    title: 'Annual Havan Ceremony',
-    event: 'Havan',
-  },
-  {
-    id: 4,
-    src: 'https://images.unsplash.com/photo-1606293926075-69a00dbfde81?w=400&h=300&fit=crop',
-    title: 'Community Wedding',
-    event: 'Wedding',
-  },
-];
 
 export function GalleryPreview() {
   const { user } = useAuth();
+
+  const { data: galleryImages, isLoading } = useQuery({
+    queryKey: ['gallery-preview'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('gallery')
+        .select('*')
+        .eq('is_public', true)
+        .order('created_at', { ascending: false })
+        .limit(4);
+
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  if (isLoading || !galleryImages || galleryImages.length === 0) {
+    return null;
+  }
 
   return (
     <section className="py-20 lg:py-28 bg-cream">
@@ -80,13 +74,13 @@ export function GalleryPreview() {
               className="group relative aspect-[4/3] rounded-xl overflow-hidden cursor-pointer"
             >
               <img
-                src={image.src}
+                src={image.image_url}
                 alt={image.title}
                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-maroon/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               <div className="absolute bottom-0 left-0 right-0 p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
-                <p className="text-xs text-gold mb-1">{image.event}</p>
+                <p className="text-xs text-gold mb-1">{image.event_name || image.category}</p>
                 <p className="text-sm font-medium text-primary-foreground">{image.title}</p>
               </div>
               {/* Lock overlay for non-authenticated users */}
