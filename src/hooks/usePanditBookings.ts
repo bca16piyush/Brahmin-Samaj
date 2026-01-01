@@ -23,7 +23,7 @@ export function usePanditReviews(panditId: string) {
   return useQuery({
     queryKey: ['pandit-reviews', panditId],
     queryFn: async () => {
-      // First get reviews
+      // Get reviews only - profiles are not publicly accessible for privacy
       const { data: reviews, error } = await supabase
         .from('pandit_reviews')
         .select('*')
@@ -33,18 +33,10 @@ export function usePanditReviews(panditId: string) {
       if (error) throw error;
       if (!reviews || reviews.length === 0) return [];
       
-      // Then fetch profiles for reviewers
-      const userIds = [...new Set(reviews.map(r => r.user_id))];
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, name')
-        .in('id', userIds);
-      
-      const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
-      
+      // Return reviews with anonymous profile display for privacy
       return reviews.map(r => ({
         ...r,
-        profiles: profileMap.get(r.user_id) || null,
+        profiles: { id: r.user_id, name: 'Community Member' },
       }));
     },
     enabled: !!panditId,
