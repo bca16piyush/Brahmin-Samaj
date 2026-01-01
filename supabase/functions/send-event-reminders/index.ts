@@ -1,16 +1,18 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface ReminderRequest {
-  eventId: string;
-  eventTitle: string;
-  eventDate: string;
-}
+// Input validation schema
+const inputSchema = z.object({
+  eventId: z.string().uuid('Invalid event ID'),
+  eventTitle: z.string().min(1, 'Event title is required').max(500, 'Event title too long'),
+  eventDate: z.string().min(1, 'Event date is required'),
+});
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -57,7 +59,20 @@ serve(async (req) => {
     const whatsappToken = Deno.env.get('WHATSAPP_ACCESS_TOKEN');
     const phoneNumberId = Deno.env.get('WHATSAPP_PHONE_NUMBER_ID');
 
-    const { eventId, eventTitle, eventDate }: ReminderRequest = await req.json();
+    // Parse and validate input
+    const body = await req.json();
+    const validation = inputSchema.safeParse(body);
+    
+    if (!validation.success) {
+      const errorMessage = validation.error.errors[0]?.message || 'Invalid input';
+      console.error('Validation error:', errorMessage);
+      return new Response(
+        JSON.stringify({ error: errorMessage }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { eventId, eventTitle, eventDate } = validation.data;
 
     console.log(`Sending reminders for event: ${eventTitle} (${eventId})`);
 

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { signUpSchema, signInSchema, profileSchema, validateOrThrow } from '@/lib/validation';
 
 export type UserRole = 'guest' | 'user' | 'admin' | 'moderator';
 export type VerificationStatus = 'none' | 'pending' | 'verified' | 'rejected';
@@ -135,16 +136,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = async (email: string, password: string, name: string, mobile: string) => {
     try {
+      // Validate input - throws on validation failure
+      const validated = validateOrThrow(signUpSchema, { email, password, name, mobile });
+      
       const redirectUrl = `${window.location.origin}/`;
       
       const { error } = await supabase.auth.signUp({
-        email,
-        password,
+        email: validated.email,
+        password: validated.password,
         options: {
           emailRedirectTo: redirectUrl,
           data: {
-            name,
-            mobile,
+            name: validated.name,
+            mobile: validated.mobile,
           }
         }
       });
@@ -158,9 +162,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
+      // Validate input - throws on validation failure
+      const validated = validateOrThrow(signInSchema, { email, password });
+      
       const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+        email: validated.email,
+        password: validated.password,
       });
       
       if (error) return { error };
@@ -182,10 +189,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!user) return { error: new Error('Not authenticated') };
     
     try {
+      // Validate profile data - throws on validation failure
+      const validated = validateOrThrow(profileSchema, {
+        name: data.name || profile?.name || '',
+        mobile: data.mobile || profile?.mobile || '',
+        email: data.email,
+        gotra: data.gotra,
+        father_name: data.father_name,
+        native_village: data.native_village,
+        reference_person: data.reference_person,
+        reference_mobile: data.reference_mobile,
+      });
+      
       const { error } = await supabase
         .from('profiles')
         .update({
-          ...data,
+          ...validated,
           verification_status: 'pending',
           rejection_reason: null,
         })

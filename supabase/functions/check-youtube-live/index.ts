@@ -1,10 +1,16 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Input validation schema
+const inputSchema = z.object({
+  channelId: z.string().min(1, 'Channel ID is required').max(100, 'Channel ID too long'),
+});
 
 interface YouTubeSearchResponse {
   items?: {
@@ -68,19 +74,25 @@ serve(async (req) => {
       );
     }
 
-    const { channelId } = await req.json();
-
-    if (!channelId) {
+    // Parse and validate input
+    const body = await req.json();
+    const validation = inputSchema.safeParse(body);
+    
+    if (!validation.success) {
+      const errorMessage = validation.error.errors[0]?.message || 'Invalid input';
+      console.error('Validation error:', errorMessage);
       return new Response(
-        JSON.stringify({ error: 'Channel ID is required' }),
+        JSON.stringify({ error: errorMessage }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
+    const { channelId } = validation.data;
+
     console.log(`Checking live status for channel: ${channelId}`);
 
     // Search for live streams on the channel
-    const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&eventType=live&type=video&key=${youtubeApiKey}`;
+    const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${encodeURIComponent(channelId)}&eventType=live&type=video&key=${youtubeApiKey}`;
     
     const searchResponse = await fetch(searchUrl);
     const searchData: YouTubeSearchResponse = await searchResponse.json();
