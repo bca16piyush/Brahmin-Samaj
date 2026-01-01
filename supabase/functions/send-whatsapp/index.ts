@@ -1,18 +1,20 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface WhatsAppMessage {
-  type: 'event' | 'verification' | 'announcement';
-  recipientPhone?: string;
-  userId?: string;
-  title: string;
-  body: string;
-}
+// Input validation schema
+const inputSchema = z.object({
+  type: z.enum(['event', 'verification', 'announcement']),
+  recipientPhone: z.string().max(20, 'Phone number too long').optional(),
+  userId: z.string().uuid('Invalid user ID').optional(),
+  title: z.string().min(1, 'Title is required').max(200, 'Title too long'),
+  body: z.string().min(1, 'Body is required').max(2000, 'Body too long'),
+});
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -67,9 +69,22 @@ serve(async (req) => {
       );
     }
 
-    const message: WhatsAppMessage = await req.json();
+    // Parse and validate input
+    const body = await req.json();
+    const validation = inputSchema.safeParse(body);
+    
+    if (!validation.success) {
+      const errorMessage = validation.error.errors[0]?.message || 'Invalid input';
+      console.error('Validation error:', errorMessage);
+      return new Response(
+        JSON.stringify({ error: errorMessage }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-    console.log('Sending WhatsApp message:', message);
+    const message = validation.data;
+
+    console.log('Sending WhatsApp message:', { type: message.type, title: message.title });
 
     let recipients: string[] = [];
 

@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { bookingSchema, reviewSchema, validateOrThrow } from '@/lib/validation';
 
 interface ReviewData {
   pandit_id: string;
@@ -97,10 +98,16 @@ export function useCreateReview() {
     mutationFn: async (review: ReviewData) => {
       if (!user) throw new Error('Not authenticated');
       
+      // Validate input - throws on validation failure
+      const validated = validateOrThrow(reviewSchema, review);
+      
       const { error } = await supabase
         .from('pandit_reviews')
         .insert({
-          ...review,
+          pandit_id: validated.pandit_id,
+          rating: validated.rating,
+          review_text: validated.review_text || null,
+          ceremony_type: validated.ceremony_type || null,
           user_id: user.id,
         });
       
@@ -264,10 +271,18 @@ export function useCreateBooking() {
     mutationFn: async (booking: BookingData) => {
       if (!user) throw new Error('Not authenticated');
       
+      // Validate input - throws on validation failure
+      const validated = validateOrThrow(bookingSchema, booking);
+      
       const { error } = await supabase
         .from('pandit_bookings')
         .insert({
-          ...booking,
+          pandit_id: validated.pandit_id,
+          ceremony_type: validated.ceremony_type,
+          booking_date: validated.booking_date,
+          booking_time: validated.booking_time || null,
+          location: validated.location || null,
+          message: validated.message || null,
           user_id: user.id,
         });
       
