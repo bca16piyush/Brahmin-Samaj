@@ -271,29 +271,6 @@ const [inKindForm, setInKindForm] = useState({
                           </SelectContent>
                         </Select>
                       </div>
-                      {inKindForm.itemType === 'Other' ? (
-                        <div className="space-y-2">
-                          <Label htmlFor="customItemType">Item Name *</Label>
-                          <Input
-                            id="customItemType"
-                            required
-                            placeholder="Enter item name"
-                            value={inKindForm.customItemType}
-                            onChange={(e) => setInKindForm({ ...inKindForm, customItemType: e.target.value })}
-                          />
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          <Label htmlFor="quantity">Quantity *</Label>
-                          <Input
-                            id="quantity"
-                            required
-                            placeholder="e.g., 5 kg, 10 pieces"
-                            value={inKindForm.quantity}
-                            onChange={(e) => setInKindForm({ ...inKindForm, quantity: e.target.value })}
-                          />
-                        </div>
-                      )}
                       <div className="space-y-2">
                         <Label htmlFor="quantity">Quantity *</Label>
                         <Input
@@ -308,13 +285,13 @@ const [inKindForm, setInKindForm] = useState({
 
                     {inKindForm.itemType === 'Other' && (
                       <div className="space-y-2">
-                        <Label htmlFor="quantity">Quantity *</Label>
+                        <Label htmlFor="customItemType">Custom Item Name *</Label>
                         <Input
-                          id="quantity"
+                          id="customItemType"
                           required
-                          placeholder="e.g., 5 kg, 10 pieces"
-                          value={inKindForm.quantity}
-                          onChange={(e) => setInKindForm({ ...inKindForm, quantity: e.target.value })}
+                          placeholder="Enter the name of the item"
+                          value={inKindForm.customItemType}
+                          onChange={(e) => setInKindForm({ ...inKindForm, customItemType: e.target.value })}
                         />
                       </div>
                     )}
