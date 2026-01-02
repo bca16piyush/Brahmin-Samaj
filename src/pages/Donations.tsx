@@ -32,8 +32,9 @@ const bankDetails = {
 export default function Donations() {
   const [copied, setCopied] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [inKindForm, setInKindForm] = useState({
+const [inKindForm, setInKindForm] = useState({
     itemType: '',
+    customItemType: '',
     quantity: '',
     location: '',
     message: '',
@@ -55,7 +56,10 @@ export default function Donations() {
 
   const handleInKindSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !inKindForm.itemType || !inKindForm.quantity || !inKindForm.location || !inKindForm.phone || !inKindForm.address) {
+    const isOther = inKindForm.itemType === 'Other';
+    const hasValidItemType = isOther ? inKindForm.customItemType : inKindForm.itemType;
+    
+    if (!user || !hasValidItemType || !inKindForm.quantity || !inKindForm.location || !inKindForm.phone || !inKindForm.address) {
       toast({
         title: 'Missing Fields',
         description: 'Please fill in all required fields',
@@ -66,9 +70,13 @@ export default function Donations() {
 
     setIsSubmitting(true);
     try {
+      const finalItemType = inKindForm.itemType === 'Other' && inKindForm.customItemType 
+        ? inKindForm.customItemType 
+        : inKindForm.itemType;
+      
       const { error } = await supabase.from('in_kind_donations').insert({
         user_id: user.id,
-        item_type: inKindForm.itemType,
+        item_type: finalItemType,
         quantity: inKindForm.quantity,
         dropoff_location: inKindForm.location,
         notes: inKindForm.message || null,
@@ -82,7 +90,7 @@ export default function Donations() {
         title: 'Donation Pledged!',
         description: 'Thank you for your generous donation. We will contact you shortly.',
       });
-      setInKindForm({ itemType: '', quantity: '', location: '', message: '', phone: '', address: '' });
+      setInKindForm({ itemType: '', customItemType: '', quantity: '', location: '', message: '', phone: '', address: '' });
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -251,7 +259,7 @@ export default function Donations() {
                         <Label htmlFor="itemType">Item Type *</Label>
                         <Select
                           value={inKindForm.itemType}
-                          onValueChange={(value) => setInKindForm({ ...inKindForm, itemType: value })}
+                          onValueChange={(value) => setInKindForm({ ...inKindForm, itemType: value, customItemType: '' })}
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="Select item" />
@@ -263,6 +271,29 @@ export default function Donations() {
                           </SelectContent>
                         </Select>
                       </div>
+                      {inKindForm.itemType === 'Other' ? (
+                        <div className="space-y-2">
+                          <Label htmlFor="customItemType">Item Name *</Label>
+                          <Input
+                            id="customItemType"
+                            required
+                            placeholder="Enter item name"
+                            value={inKindForm.customItemType}
+                            onChange={(e) => setInKindForm({ ...inKindForm, customItemType: e.target.value })}
+                          />
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <Label htmlFor="quantity">Quantity *</Label>
+                          <Input
+                            id="quantity"
+                            required
+                            placeholder="e.g., 5 kg, 10 pieces"
+                            value={inKindForm.quantity}
+                            onChange={(e) => setInKindForm({ ...inKindForm, quantity: e.target.value })}
+                          />
+                        </div>
+                      )}
                       <div className="space-y-2">
                         <Label htmlFor="quantity">Quantity *</Label>
                         <Input
@@ -274,6 +305,19 @@ export default function Donations() {
                         />
                       </div>
                     </div>
+
+                    {inKindForm.itemType === 'Other' && (
+                      <div className="space-y-2">
+                        <Label htmlFor="quantity">Quantity *</Label>
+                        <Input
+                          id="quantity"
+                          required
+                          placeholder="e.g., 5 kg, 10 pieces"
+                          value={inKindForm.quantity}
+                          onChange={(e) => setInKindForm({ ...inKindForm, quantity: e.target.value })}
+                        />
+                      </div>
+                    )}
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
