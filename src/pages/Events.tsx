@@ -36,8 +36,18 @@ export default function Events() {
   const { data: events, isLoading } = usePublicEvents();
 
   const now = new Date();
-  const upcomingEvents = events?.filter((e) => new Date(e.event_date) >= now) || [];
-  const pastEvents = events?.filter((e) => new Date(e.event_date) < now) || [];
+  // Event is upcoming/live if: start date is in future OR end date is in future (still running)
+  const upcomingEvents = events?.filter((e) => {
+    const startDate = new Date(e.event_date);
+    const endDate = e.end_date ? new Date(e.end_date) : startDate;
+    return startDate >= now || endDate >= now;
+  }) || [];
+  // Event is past only if both start and end dates are in the past
+  const pastEvents = events?.filter((e) => {
+    const startDate = new Date(e.event_date);
+    const endDate = e.end_date ? new Date(e.end_date) : startDate;
+    return startDate < now && endDate < now;
+  }) || [];
   const featuredEvents = upcomingEvents.filter((e) => e.is_featured);
   const regularEvents = upcomingEvents.filter((e) => !e.is_featured);
 
