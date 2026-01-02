@@ -36,20 +36,29 @@ export default function Events() {
   const { data: events, isLoading } = usePublicEvents();
 
   const now = new Date();
-  // Event is upcoming/live if: start date is in future OR end date is in future (still running)
-  const upcomingEvents = events?.filter((e) => {
+  
+  // Happening Now: started but not ended
+  const happeningNowEvents = events?.filter((e) => {
     const startDate = new Date(e.event_date);
     const endDate = e.end_date ? new Date(e.end_date) : startDate;
-    return startDate >= now || endDate >= now;
+    return startDate <= now && endDate >= now;
   }) || [];
-  // Event is past only if both start and end dates are in the past
+  
+  // Upcoming: not started yet
+  const upcomingEvents = events?.filter((e) => {
+    const startDate = new Date(e.event_date);
+    return startDate > now;
+  }) || [];
+  
+  // Past: both start and end dates are in the past
   const pastEvents = events?.filter((e) => {
     const startDate = new Date(e.event_date);
     const endDate = e.end_date ? new Date(e.end_date) : startDate;
     return startDate < now && endDate < now;
   }) || [];
-  const featuredEvents = upcomingEvents.filter((e) => e.is_featured);
-  const regularEvents = upcomingEvents.filter((e) => !e.is_featured);
+  
+  const featuredUpcoming = upcomingEvents.filter((e) => e.is_featured);
+  const regularUpcoming = upcomingEvents.filter((e) => !e.is_featured);
 
   if (isLoading) {
     return (
@@ -93,12 +102,15 @@ export default function Events() {
             </motion.p>
           </div>
 
-          {/* Featured Events */}
-          {featuredEvents.length > 0 && (
+          {/* Happening Now */}
+          {happeningNowEvents.length > 0 && (
             <div className="mb-16">
-              <h2 className="font-heading text-2xl font-bold mb-6">Featured Events</h2>
+              <h2 className="font-heading text-2xl font-bold mb-6 flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-red-500 animate-pulse"></span>
+                Happening Now
+              </h2>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {featuredEvents.map((event, index) => (
+                {happeningNowEvents.map((event, index) => (
                   <motion.div
                     key={event.id}
                     initial={{ opacity: 0, y: 30 }}
@@ -122,12 +134,85 @@ export default function Events() {
                         <Badge className={`${typeColors[event.event_type || 'Event']}`}>
                           {event.event_type || 'Event'}
                         </Badge>
-                        {event.is_live && (
-                          <Badge variant="destructive" className="animate-pulse">
-                            <Video className="w-3 h-3 mr-1" />
-                            LIVE
-                          </Badge>
+                        <Badge variant="destructive" className="animate-pulse">
+                          <Video className="w-3 h-3 mr-1" />
+                          LIVE NOW
+                        </Badge>
+                      </div>
+                      <h3 className="font-heading text-2xl font-bold mb-4">{event.title}</h3>
+                      {event.description && (
+                        <p className="text-primary-foreground/80 mb-6 line-clamp-2">{event.description}</p>
+                      )}
+                      
+                      <div className="space-y-2 mb-6">
+                        <div className="flex items-center gap-2 text-sm">
+                          <Calendar className="w-4 h-4 text-gold" />
+                          {format(new Date(event.event_date), 'EEEE, MMMM d, yyyy')}
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                          <Clock className="w-4 h-4 text-gold" />
+                          {format(new Date(event.event_date), 'h:mm a')}
+                          {event.end_date && ` - ${format(new Date(event.end_date), 'h:mm a')}`}
+                        </div>
+                        {event.location && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <MapPin className="w-4 h-4 text-gold" />
+                            {event.location}
+                          </div>
                         )}
+                      </div>
+
+                      <div className="flex gap-3">
+                        <Link to={`/events/${event.id}`}>
+                          <Button variant="hero">
+                            View Details
+                          </Button>
+                        </Link>
+                        {event.youtube_live_url && (
+                          <Link to={`/events/${event.id}`}>
+                            <Button variant="outline" className="bg-transparent border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10">
+                              <Video className="w-4 h-4 mr-2" />
+                              Watch Live
+                            </Button>
+                          </Link>
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Featured Upcoming Events */}
+          {featuredUpcoming.length > 0 && (
+            <div className="mb-16">
+              <h2 className="font-heading text-2xl font-bold mb-6">Featured Upcoming Events</h2>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {featuredUpcoming.map((event, index) => (
+                  <motion.div
+                    key={event.id}
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-maroon to-maroon-light text-primary-foreground"
+                  >
+                    {event.image_url && (
+                      <div className="absolute inset-0">
+                        <img
+                          src={event.image_url}
+                          alt={event.title}
+                          className="w-full h-full object-cover opacity-30"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-maroon via-maroon/80 to-transparent" />
+                      </div>
+                    )}
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-gold/10 rounded-full blur-3xl" />
+                    <div className="relative z-10 p-8">
+                      <div className="flex items-center gap-2 mb-4">
+                        <Badge className={`${typeColors[event.event_type || 'Event']}`}>
+                          {event.event_type || 'Event'}
+                        </Badge>
                       </div>
                       <h3 className="font-heading text-2xl font-bold mb-4">{event.title}</h3>
                       {event.description && (
@@ -158,21 +243,11 @@ export default function Events() {
                         )}
                       </div>
 
-                      <div className="flex gap-3">
-                        <Link to={`/events/${event.id}`}>
-                          <Button variant="hero">
-                            View Details
-                          </Button>
-                        </Link>
-                        {event.youtube_live_url && (
-                          <Link to={`/events/${event.id}`}>
-                            <Button variant="outline" className="bg-transparent border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10">
-                              <Video className="w-4 h-4 mr-2" />
-                              {event.is_live ? 'Watch Live' : 'Watch Video'}
-                            </Button>
-                          </Link>
-                        )}
-                      </div>
+                      <Link to={`/events/${event.id}`}>
+                        <Button variant="hero">
+                          View Details
+                        </Button>
+                      </Link>
                     </div>
                   </motion.div>
                 ))}
@@ -181,11 +256,11 @@ export default function Events() {
           )}
 
           {/* All Upcoming Events */}
-          {regularEvents.length > 0 && (
+          {regularUpcoming.length > 0 && (
             <div className="mb-16">
-              <h2 className="font-heading text-2xl font-bold mb-6">All Upcoming Events</h2>
+              <h2 className="font-heading text-2xl font-bold mb-6">Upcoming Events</h2>
               <div className="space-y-4">
-                {regularEvents.map((event, index) => (
+                {regularUpcoming.map((event, index) => (
                   <motion.div
                     key={event.id}
                     initial={{ opacity: 0, x: -20 }}
