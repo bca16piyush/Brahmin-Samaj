@@ -16,6 +16,7 @@ export default defineConfig(({ mode }) => ({
     VitePWA({
       registerType: "autoUpdate",
       includeAssets: ["favicon.png", "pwa-192x192.png", "pwa-512x512.png"],
+      manifestFilename: "manifest.json",
       manifest: {
         name: "Brahmin Samaj",
         short_name: "Brahmin Samaj",
