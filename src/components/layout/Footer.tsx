@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Phone, Mail, MapPin, Facebook, Youtube, Instagram } from 'lucide-react';
+import { Phone, Mail, MapPin, Facebook, Youtube, Instagram, Download } from 'lucide-react';
 
 export function Footer() {
   return (
@@ -30,12 +30,14 @@ export function Footer() {
                 { name: 'Events', href: '/events' },
                 { name: 'Gallery', href: '/gallery' },
                 { name: 'Donations', href: '/donations' },
+                { name: 'Install App', href: '/install', icon: Download },
               ].map((link) => (
                 <li key={link.name}>
                   <Link
                     to={link.href}
-                    className="text-primary-foreground/70 hover:text-gold transition-colors text-sm"
+                    className="text-primary-foreground/70 hover:text-gold transition-colors text-sm flex items-center gap-2"
                   >
+                    {link.icon && <link.icon className="w-3 h-3" />}
                     {link.name}
                   </Link>
                 </li>
