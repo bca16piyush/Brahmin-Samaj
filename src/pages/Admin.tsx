@@ -85,7 +85,7 @@ export default function Admin() {
               </TabsTrigger>
               <TabsTrigger value="events" className="flex items-center gap-2">
                 <Calendar className="w-4 h-4" />
-                <span className="hidden sm:inline">Events</span>
+                <span className="hidden sm:inline">यज्ञ</span>
               </TabsTrigger>
               <TabsTrigger value="registrations" className="flex items-center gap-2">
                 <ClipboardList className="w-4 h-4" />
