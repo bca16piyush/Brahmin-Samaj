@@ -354,7 +354,7 @@ export function RegistrationManager() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <h2 className="font-heading text-xl font-semibold">Event Registrations</h2>
+        <h2 className="font-heading text-xl font-semibold">यज्ञ पंजीकरण (Yagya Registrations)</h2>
         {selectedEventId && (
           <div className="flex gap-2">
             {/* Export CSV Button */}
@@ -380,7 +380,7 @@ export function RegistrationManager() {
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `registrations_${selectedEvent?.title?.replace(/\s+/g, '_') || 'event'}_${format(new Date(), 'yyyy-MM-dd')}.csv`;
+                a.download = `registrations_${selectedEvent?.title?.replace(/\s+/g, '_') || 'yagya'}_${format(new Date(), 'yyyy-MM-dd')}.csv`;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
@@ -389,7 +389,7 @@ export function RegistrationManager() {
               disabled={!registrations || registrations.length === 0}
             >
               <Download className="w-4 h-4 mr-2" />
-              Export CSV
+              निर्यात करें
             </Button>
             
             {/* Manual Registration Dialog */}
@@ -397,19 +397,19 @@ export function RegistrationManager() {
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm">
                   <UserPlus className="w-4 h-4 mr-2" />
-                  Add Registration
+                  पंजीकरण जोड़ें
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-md">
                 <DialogHeader>
-                  <DialogTitle>Manual Registration</DialogTitle>
+                  <DialogTitle>मैनुअल पंजीकरण</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4 mt-4">
                   <p className="text-sm text-muted-foreground">
-                    Register a user for: <strong>{selectedEvent?.title}</strong>
+                    यज्ञ के लिए पंजीकरण: <strong>{selectedEvent?.title}</strong>
                   </p>
                   <div className="space-y-2">
-                    <Label>Email *</Label>
+                    <Label>ईमेल *</Label>
                     <Input
                       type="email"
                       value={manualForm.email}
@@ -418,15 +418,15 @@ export function RegistrationManager() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Name (for new users)</Label>
+                    <Label>नाम (नए उपयोगकर्ता के लिए)</Label>
                     <Input
                       value={manualForm.name}
                       onChange={(e) => setManualForm({ ...manualForm, name: e.target.value })}
-                      placeholder="Full name"
+                      placeholder="पूरा नाम"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Mobile (for new users)</Label>
+                    <Label>मोबाइल (नए उपयोगकर्ता के लिए)</Label>
                     <Input
                       value={manualForm.mobile}
                       onChange={(e) => setManualForm({ ...manualForm, mobile: e.target.value })}
@@ -441,10 +441,10 @@ export function RegistrationManager() {
                     {manualRegister.isPending ? (
                       <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Registering...
+                        पंजीकरण हो रहा है...
                       </>
                     ) : (
-                      'Register User'
+                      'पंजीकरण करें'
                     )}
                   </Button>
                 </div>
@@ -459,33 +459,33 @@ export function RegistrationManager() {
               <DialogTrigger asChild>
                 <Button variant="hero" size="sm">
                   <Upload className="w-4 h-4 mr-2" />
-                  Bulk Upload
+                  बल्क अपलोड
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-md">
                 <DialogHeader>
-                  <DialogTitle>Bulk Registration Upload</DialogTitle>
+                  <DialogTitle>बल्क पंजीकरण अपलोड</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4 mt-4">
                   <p className="text-sm text-muted-foreground">
-                    Upload a CSV file to register multiple users for: <strong>{selectedEvent?.title}</strong>
+                    CSV फ़ाइल अपलोड करें: <strong>{selectedEvent?.title}</strong>
                   </p>
                   <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded p-3 text-xs">
                     <div className="flex items-start gap-2">
                       <AlertCircle className="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0" />
                       <div>
-                        <p className="font-medium text-yellow-800 dark:text-yellow-300">Only existing users will be registered</p>
-                        <p className="text-yellow-700 dark:text-yellow-400 mt-1">Users not found in the system will be skipped and listed in the results.</p>
+                        <p className="font-medium text-yellow-800 dark:text-yellow-300">केवल मौजूदा उपयोगकर्ता पंजीकृत होंगे</p>
+                        <p className="text-yellow-700 dark:text-yellow-400 mt-1">सिस्टम में न मिले उपयोगकर्ता छोड़ दिए जाएंगे।</p>
                       </div>
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Required column: user_email. Optional: user_name, user_mobile
+                    आवश्यक कॉलम: user_email | वैकल्पिक: user_name, user_mobile
                   </p>
                   
                   <Button variant="outline" className="w-full" onClick={handleDownloadSampleCSV}>
                     <Download className="w-4 h-4 mr-2" />
-                    Download Sample CSV
+                    नमूना CSV डाउनलोड करें
                   </Button>
 
                   <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
@@ -502,14 +502,14 @@ export function RegistrationManager() {
                       className="cursor-pointer flex flex-col items-center"
                     >
                       <Upload className="w-8 h-8 text-muted-foreground mb-2" />
-                      <span className="text-sm font-medium">Click to upload CSV</span>
+                      <span className="text-sm font-medium">CSV अपलोड करने के लिए क्लिक करें</span>
                     </label>
                   </div>
 
                   {bulkRegister.isPending && (
                     <div className="flex items-center justify-center gap-2 py-4">
                       <Loader2 className="w-5 h-5 animate-spin" />
-                      <span>Processing registrations...</span>
+                      <span>पंजीकरण प्रक्रिया जारी है...</span>
                     </div>
                   )}
 
@@ -517,13 +517,13 @@ export function RegistrationManager() {
                     <div className="space-y-3">
                       <div className="flex items-center gap-2">
                         <CheckCircle className="w-5 h-5 text-green-600" />
-                        <span>{bulkResults.success} users registered</span>
+                        <span>{bulkResults.success} उपयोगकर्ता पंजीकृत</span>
                       </div>
                       {bulkResults.failed > 0 && (
                         <>
                           <div className="flex items-center gap-2">
                             <XCircle className="w-5 h-5 text-destructive" />
-                            <span>{bulkResults.failed} failed</span>
+                            <span>{bulkResults.failed} असफल</span>
                           </div>
                           <div className="max-h-24 overflow-y-auto bg-muted/50 rounded p-2 text-xs">
                             {bulkResults.errors.map((err, i) => (
@@ -536,11 +536,11 @@ export function RegistrationManager() {
                         <>
                           <div className="flex items-center gap-2 text-yellow-600">
                             <XCircle className="w-5 h-5" />
-                            <span className="font-medium">{bulkResults.skipped.length} users skipped (not signed up)</span>
+                            <span className="font-medium">{bulkResults.skipped.length} उपयोगकर्ता छोड़े गए (पंजीकृत नहीं)</span>
                           </div>
                           <div className="max-h-32 overflow-y-auto bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded p-3 text-sm">
                             <p className="text-xs text-yellow-700 dark:text-yellow-400 mb-2 font-medium">
-                              These users are not registered in the system and were skipped:
+                              ये उपयोगकर्ता सिस्टम में पंजीकृत नहीं हैं:
                             </p>
                             {bulkResults.skipped.map((email, i) => (
                               <p key={i} className="text-yellow-800 dark:text-yellow-300 text-xs">{email}</p>
@@ -557,19 +557,19 @@ export function RegistrationManager() {
         )}
       </div>
 
-      {/* Event Selector */}
+      {/* यज्ञ Selector */}
       <Card className="border-border">
         <CardContent className="p-4">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1">
               <Select value={selectedEventId} onValueChange={setSelectedEventId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select an event to manage registrations" />
+                  <SelectValue placeholder="पंजीकरण प्रबंधन के लिए यज्ञ चुनें" />
                 </SelectTrigger>
                 <SelectContent>
                   {upcomingEvents.length > 0 && (
                     <>
-                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Upcoming Events</div>
+                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">आगामी यज्ञ</div>
                       {upcomingEvents.map(event => (
                         <SelectItem key={event.id} value={event.id}>
                           {event.title} - {format(new Date(event.event_date), 'MMM d, yyyy')}
@@ -579,7 +579,7 @@ export function RegistrationManager() {
                   )}
                   {pastEvents.length > 0 && (
                     <>
-                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground mt-2">Past Events</div>
+                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground mt-2">संपन्न यज्ञ</div>
                       {pastEvents.map(event => (
                         <SelectItem key={event.id} value={event.id}>
                           {event.title} - {format(new Date(event.event_date), 'MMM d, yyyy')}
@@ -597,14 +597,14 @@ export function RegistrationManager() {
                 disabled={sendReminders.isPending || registeredCount === 0}
               >
                 <Bell className="w-4 h-4 mr-2" />
-                {sendReminders.isPending ? 'Sending...' : 'Send Reminders'}
+                {sendReminders.isPending ? 'भेज रहा है...' : 'रिमाइंडर भेजें'}
               </Button>
             )}
           </div>
         </CardContent>
       </Card>
 
-      {/* Selected Event Details & Stats */}
+      {/* Selected Yagya Details & Stats */}
       {selectedEvent && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card className="border-border">
@@ -615,7 +615,7 @@ export function RegistrationManager() {
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{registeredCount}</p>
-                  <p className="text-sm text-muted-foreground">Total Registered</p>
+                  <p className="text-sm text-muted-foreground">कुल पंजीकृत</p>
                 </div>
               </div>
             </CardContent>
@@ -628,7 +628,7 @@ export function RegistrationManager() {
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{attendedCount}</p>
-                  <p className="text-sm text-muted-foreground">Attended</p>
+                  <p className="text-sm text-muted-foreground">उपस्थित</p>
                 </div>
               </div>
             </CardContent>
@@ -645,7 +645,7 @@ export function RegistrationManager() {
                       ? selectedEvent.registration_limit - registeredCount 
                       : '∞'}
                   </p>
-                  <p className="text-sm text-muted-foreground">Spots Left</p>
+                  <p className="text-sm text-muted-foreground">स्थान शेष</p>
                 </div>
               </div>
             </CardContent>
@@ -658,11 +658,11 @@ export function RegistrationManager() {
         <Card className="border-border">
           <CardHeader className="pb-3">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <CardTitle className="text-lg">Registered Users</CardTitle>
+              <CardTitle className="text-lg">पंजीकृत उपयोगकर्ता</CardTitle>
               <div className="relative w-full md:w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search by name or mobile..."
+                  placeholder="नाम या मोबाइल से खोजें..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-9"
@@ -677,18 +677,18 @@ export function RegistrationManager() {
               </div>
             ) : filteredRegistrations?.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                {searchTerm ? 'No registrations match your search.' : 'No registrations yet for this event.'}
+                {searchTerm ? 'खोज से कोई परिणाम नहीं मिला।' : 'इस यज्ञ के लिए अभी कोई पंजीकरण नहीं।'}
               </div>
             ) : (
               <div className="space-y-2">
                 {/* Header */}
                 <div className="hidden md:grid grid-cols-12 gap-4 px-4 py-2 bg-muted/50 rounded-lg text-sm font-medium text-muted-foreground">
-                  <div className="col-span-1">Attended</div>
-                  <div className="col-span-3">Name</div>
-                  <div className="col-span-2">Mobile</div>
-                  <div className="col-span-3">Email</div>
-                  <div className="col-span-2">Registered At</div>
-                  <div className="col-span-1">Reminder</div>
+                  <div className="col-span-1">उपस्थित</div>
+                  <div className="col-span-3">नाम</div>
+                  <div className="col-span-2">मोबाइल</div>
+                  <div className="col-span-3">ईमेल</div>
+                  <div className="col-span-2">पंजीकरण तिथि</div>
+                  <div className="col-span-1">रिमाइंडर</div>
                 </div>
 
                 {/* Rows */}
@@ -725,9 +725,9 @@ export function RegistrationManager() {
                       </div>
                       <div className="col-span-1 flex items-center">
                         {reg.reminder_sent ? (
-                          <Badge variant="secondary" className="text-xs">Sent</Badge>
+                          <Badge variant="secondary" className="text-xs">भेजा</Badge>
                         ) : (
-                          <Badge variant="outline" className="text-xs">Pending</Badge>
+                          <Badge variant="outline" className="text-xs">लंबित</Badge>
                         )}
                       </div>
                     </motion.div>
@@ -739,7 +739,7 @@ export function RegistrationManager() {
         </Card>
       )}
 
-      {/* Overall Summary when no event selected */}
+      {/* Overall Summary when no yagya selected */}
       {!selectedEventId && (
         <div className="space-y-6">
           {/* Overall Stats */}
@@ -752,7 +752,7 @@ export function RegistrationManager() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{totalRegistrations}</p>
-                    <p className="text-sm text-muted-foreground">Total Registrations</p>
+                    <p className="text-sm text-muted-foreground">कुल पंजीकरण</p>
                   </div>
                 </div>
               </CardContent>
@@ -765,7 +765,7 @@ export function RegistrationManager() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{totalAttended}</p>
-                    <p className="text-sm text-muted-foreground">Total Attended</p>
+                    <p className="text-sm text-muted-foreground">कुल उपस्थित</p>
                   </div>
                 </div>
               </CardContent>
@@ -778,7 +778,7 @@ export function RegistrationManager() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{totalRemindersSent}</p>
-                    <p className="text-sm text-muted-foreground">Reminders Sent</p>
+                    <p className="text-sm text-muted-foreground">रिमाइंडर भेजे</p>
                   </div>
                 </div>
               </CardContent>
@@ -791,7 +791,7 @@ export function RegistrationManager() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{eventsWithRegistrations}</p>
-                    <p className="text-sm text-muted-foreground">Events with Registrations</p>
+                    <p className="text-sm text-muted-foreground">पंजीकरण वाले यज्ञ</p>
                   </div>
                 </div>
               </CardContent>
@@ -801,7 +801,7 @@ export function RegistrationManager() {
           <Card className="border-border">
             <CardContent className="py-8 text-center">
               <Calendar className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">Select an event above to view and manage its registrations</p>
+              <p className="text-muted-foreground">पंजीकरण देखने और प्रबंधित करने के लिए ऊपर से यज्ञ चुनें</p>
             </CardContent>
           </Card>
         </div>
