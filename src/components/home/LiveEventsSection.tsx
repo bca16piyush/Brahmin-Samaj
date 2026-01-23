@@ -50,7 +50,7 @@ export function LiveEventsSection() {
               transition={{ delay: 0.1 }}
               className="font-heading text-3xl md:text-4xl font-bold text-foreground"
             >
-              Live <span className="text-gradient-saffron">Events</span>
+              लाइव <span className="text-gradient-saffron">यज्ञ</span>
             </motion.h2>
           </div>
           <Link to="/live">
@@ -61,7 +61,7 @@ export function LiveEventsSection() {
               transition={{ delay: 0.2 }}
               className="text-primary hover:text-primary/80 font-medium mt-4 md:mt-0 inline-flex items-center gap-1"
             >
-              View All Live Events →
+              सभी लाइव यज्ञ देखें →
             </motion.span>
           </Link>
         </div>

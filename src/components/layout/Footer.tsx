@@ -28,7 +28,7 @@ export function Footer() {
                 { name: 'Home', href: '/' },
                 { name: 'About Us', href: '/about' },
                 { name: 'Panditji Directory', href: '/panditji' },
-                { name: 'Events', href: '/events' },
+                { name: 'Yagyas', href: '/yagyas' },
                 { name: 'Gallery', href: '/gallery' },
                 { name: 'Donations', href: '/donations' },
                 { name: 'Install App', href: '/install', icon: Download },
