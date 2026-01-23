@@ -352,14 +352,16 @@ export default function Events() {
           {/* Past Events */}
           {pastEvents.length > 0 && (
             <div>
-              <h2 className="font-heading text-2xl font-bold mb-6 text-muted-foreground">संपन्न यज्ञ</h2>
+              <h2 className="font-heading text-2xl font-bold mb-6 text-muted-foreground">
+                संपन्न यज्ञ ({pastEvents.length})
+              </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {pastEvents.slice(0, 6).map((event, index) => (
+                {pastEvents.map((event, index) => (
                   <motion.div
                     key={event.id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.05 }}
+                    transition={{ delay: Math.min(index * 0.02, 0.5) }}
                   >
                     <Link to={`/yagyas/${event.id}`}>
                       <div className="group rounded-xl bg-card border border-border hover:border-muted-foreground/30 transition-all overflow-hidden opacity-70 hover:opacity-100">
@@ -375,7 +377,10 @@ export default function Events() {
                         <div className="p-4">
                           <div className="flex items-center gap-2 mb-2">
                             <Badge variant="secondary" className="text-xs">
-                              {format(new Date(event.event_date), 'MMM d, yyyy')}
+                              {format(new Date(event.event_date), 'yyyy')}
+                            </Badge>
+                            <Badge variant="outline" className="text-xs">
+                              {event.location?.split(',')[0] || 'भारत'}
                             </Badge>
                             {event.youtube_live_url && (
                               <Badge variant="secondary" className="text-xs bg-red-500/20 text-red-600">
@@ -384,12 +389,9 @@ export default function Events() {
                               </Badge>
                             )}
                           </div>
-                          <h3 className="font-heading font-semibold line-clamp-1">{event.title}</h3>
-                          {event.location && (
-                            <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-                              <MapPin className="w-3 h-3" />
-                              {event.location}
-                            </p>
+                          <h3 className="font-heading font-semibold line-clamp-2">{event.title}</h3>
+                          {event.description && (
+                            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{event.description}</p>
                           )}
                         </div>
                       </div>
@@ -404,8 +406,8 @@ export default function Events() {
           {!events?.length && (
             <div className="text-center py-12">
               <Calendar className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground text-lg">No events scheduled at the moment.</p>
-              <p className="text-sm text-muted-foreground mt-2">Check back soon for upcoming community events!</p>
+              <p className="text-muted-foreground text-lg">अभी कोई यज्ञ निर्धारित नहीं है।</p>
+              <p className="text-sm text-muted-foreground mt-2">आगामी यज्ञों की जानकारी के लिए शीघ्र पुनः देखें!</p>
             </div>
           )}
         </div>
