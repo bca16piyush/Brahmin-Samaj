@@ -31,9 +31,9 @@ export function Navbar() {
             </div>
             <div className="hidden sm:block">
               <h1 className="font-heading text-lg lg:text-xl font-semibold text-foreground">
-                Brahmin Samaj
+                महायज्ञ
               </h1>
-              <p className="text-xs text-muted-foreground -mt-0.5">Community Portal</p>
+              <p className="text-xs text-muted-foreground -mt-0.5">Mahayagya</p>
             </div>
           </Link>
 
