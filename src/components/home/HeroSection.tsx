@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Users, Calendar, Video } from 'lucide-react';
+import { ArrowRight, Flame, Calendar, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import heroImage from '@/assets/hero-temple.jpg';
 
@@ -11,7 +11,7 @@ export function HeroSection() {
       <div className="absolute inset-0 z-0">
         <img
           src={heroImage}
-          alt="Sacred temple at sunrise"
+          alt="Sacred yagya fire ceremony"
           className="w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-maroon/90 via-maroon/70 to-transparent" />
@@ -27,7 +27,7 @@ export function HeroSection() {
             transition={{ duration: 0.8 }}
           >
             <span className="inline-block px-4 py-1.5 rounded-full bg-gold/20 text-gold text-sm font-medium mb-6 border border-gold/30">
-              Est. Since Ancient Times
+              श्री प्रखर परोपकार मिशन
             </span>
           </motion.div>
 
@@ -37,8 +37,8 @@ export function HeroSection() {
             transition={{ duration: 0.8, delay: 0.1 }}
             className="font-heading text-4xl md:text-5xl lg:text-6xl font-bold text-primary-foreground leading-tight mb-6"
           >
-            Connecting Culture,{' '}
-            <span className="text-gradient-saffron">Community</span>, and Lineage
+            महायज्ञ{' '}
+            <span className="text-gradient-saffron">विश्व कल्याण हेतु</span>
           </motion.h1>
 
           <motion.p
@@ -47,8 +47,8 @@ export function HeroSection() {
             transition={{ duration: 0.8, delay: 0.2 }}
             className="text-lg md:text-xl text-primary-foreground/80 mb-8 leading-relaxed"
           >
-            Join our sacred community platform to preserve traditions, connect with priests, 
-            and participate in spiritual events. Your heritage, digitally preserved.
+            महामंडलेश्वर स्वामी श्री प्रखर जी महाराज के सान्निध्य में वैदिक शास्त्रीय विधि-विधान से 
+            आयोजित महायज्ञ। भ्रष्टाचार मुक्त भारत एवं राष्ट्र उन्नति के पवित्र संकल्प।
           </motion.p>
 
           <motion.div
@@ -57,15 +57,15 @@ export function HeroSection() {
             transition={{ duration: 0.8, delay: 0.3 }}
             className="flex flex-col sm:flex-row gap-4"
           >
-            <Link to="/register">
+            <Link to="/events">
               <Button variant="hero" size="lg" className="w-full sm:w-auto">
-                Join Our Community
+                View Upcoming Yagyas
                 <ArrowRight className="w-5 h-5 ml-1" />
               </Button>
             </Link>
-            <Link to="/panditji">
+            <Link to="/about">
               <Button variant="outline" size="lg" className="w-full sm:w-auto bg-primary-foreground/10 text-primary-foreground border-primary-foreground/30 hover:bg-primary-foreground/20">
-                Find Panditji
+                About Guruji
               </Button>
             </Link>
           </motion.div>
@@ -78,9 +78,9 @@ export function HeroSection() {
             className="flex flex-wrap gap-8 mt-12"
           >
             {[
-              { icon: Users, value: '5,000+', label: 'Members' },
-              { icon: Calendar, value: '200+', label: 'Events' },
-              { icon: Video, value: '50+', label: 'Live Streams' },
+              { icon: Flame, value: '9+', label: 'Lakh Chandi Yagyas' },
+              { icon: Calendar, value: '35+', label: 'Years of Service' },
+              { icon: Users, value: '2500+', label: 'Vedic Scholars' },
             ].map(({ icon: Icon, value, label }) => (
               <div key={label} className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-xl bg-gold/20 flex items-center justify-center">

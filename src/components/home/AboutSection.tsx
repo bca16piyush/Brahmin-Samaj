@@ -1,26 +1,26 @@
 import { motion } from 'framer-motion';
-import { BookOpen, Heart, Users, Star } from 'lucide-react';
+import { Flame, Heart, Shield, BookOpen } from 'lucide-react';
 
 const features = [
   {
-    icon: BookOpen,
-    title: 'Vedic Traditions',
-    description: 'Preserving and teaching ancient Vedic knowledge and rituals for generations.',
+    icon: Flame,
+    title: 'वैदिक यज्ञ',
+    description: 'शास्त्रीय विधि-विधान से आयोजित महायज्ञ विश्व कल्याण एवं राष्ट्र हित हेतु।',
+  },
+  {
+    icon: Shield,
+    title: 'राष्ट्र रक्षा',
+    description: 'भ्रष्टाचार मुक्त, आर्थिक एवं आणविक दृष्टि से सुदृढ़ भारत के निर्माण हेतु संकल्प।',
   },
   {
     icon: Heart,
-    title: 'Community Support',
-    description: 'A network of families supporting each other through all life ceremonies.',
+    title: 'सेवा कार्य',
+    description: 'हॉस्पिटल, विद्यालय, गौशालाएं एवं वृद्ध जन सेवा के माध्यम से समाज सेवा।',
   },
   {
-    icon: Users,
-    title: 'Gotra Registry',
-    description: 'Maintaining lineage records to preserve our sacred heritage.',
-  },
-  {
-    icon: Star,
-    title: 'Spiritual Events',
-    description: 'Regular havans, pujas, and celebrations bringing the community together.',
+    icon: BookOpen,
+    title: 'वेद प्रचार',
+    description: 'संस्कृत शिक्षा एवं वैदिक ज्ञान का संरक्षण एवं प्रसार भावी पीढ़ियों हेतु।',
   },
 ];
 
@@ -35,7 +35,7 @@ export function AboutSection() {
             viewport={{ once: true }}
             className="inline-block px-4 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4"
           >
-            Our Mission
+            हमारा उद्देश्य
           </motion.span>
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
@@ -44,8 +44,8 @@ export function AboutSection() {
             transition={{ delay: 0.1 }}
             className="font-heading text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-6"
           >
-            Preserving Heritage,{' '}
-            <span className="text-gradient-saffron">Building Future</span>
+            परोपकारार्थमिदं{' '}
+            <span className="text-gradient-saffron">शरीरम्</span>
           </motion.h2>
           <motion.p
             initial={{ opacity: 0, y: 20 }}
@@ -54,8 +54,8 @@ export function AboutSection() {
             transition={{ delay: 0.2 }}
             className="text-lg text-muted-foreground"
           >
-            We are dedicated to maintaining the sacred traditions of Brahmin culture while 
-            embracing modern technology to connect our community across the globe.
+            वेद के शास्त्रीय मर्यादा के अनुरूप, राष्ट्र हित में किया जाने वाला कर्म ही धर्म है। 
+            भारतीय वैदिक हिंदू धर्म संस्कृति के संरक्षण एवं विश्व कल्याण हेतु समर्पित।
           </motion.p>
         </div>
 

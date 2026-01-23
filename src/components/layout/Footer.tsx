@@ -12,10 +12,11 @@ export function Footer() {
               <div className="w-10 h-10 rounded-full bg-gold/20 flex items-center justify-center">
                 <span className="text-gold text-xl">ॐ</span>
               </div>
-              <h3 className="font-heading text-xl font-semibold">Brahmin Samaj</h3>
+              <h3 className="font-heading text-xl font-semibold">महायज्ञ</h3>
             </div>
             <p className="text-primary-foreground/80 text-sm leading-relaxed">
-              Connecting our community through culture, tradition, and shared heritage. Preserving our lineage for future generations.
+              महामंडलेश्वर स्वामी श्री प्रखर जी महाराज के सान्निध्य में वैदिक शास्त्रीय विधि-विधान से आयोजित महायज्ञ। 
+              विश्व कल्याण एवं राष्ट्र हित हेतु समर्पित।
             </p>
           </div>
 
@@ -55,13 +56,13 @@ export function Footer() {
               </li>
               <li className="flex items-start gap-3 text-sm">
                 <Mail className="w-4 h-4 mt-0.5 text-gold" />
-                <span className="text-primary-foreground/80">info@brahminsamaj.org</span>
+                <span className="text-primary-foreground/80">info@mahayagya.com</span>
               </li>
               <li className="flex items-start gap-3 text-sm">
                 <MapPin className="w-4 h-4 mt-0.5 text-gold" />
                 <span className="text-primary-foreground/80">
-                  Community Center, Temple Road<br />
-                  Varanasi, Uttar Pradesh
+                  श्री प्रखर परोपकार मिशन<br />
+                  काशी, वाराणसी
                 </span>
               </li>
             </ul>
@@ -93,7 +94,7 @@ export function Footer() {
 
         <div className="mt-12 pt-8 border-t border-primary-foreground/10 text-center">
           <p className="text-sm text-primary-foreground/60">
-            © {new Date().getFullYear()} Brahmin Samaj. All rights reserved.
+            © {new Date().getFullYear()} Mahayagya - श्री प्रखर परोपकार मिशन. All rights reserved.
           </p>
         </div>
       </div>
