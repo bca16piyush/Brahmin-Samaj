@@ -33,7 +33,7 @@ export function AdminOverview() {
     { label: 'Pending Verifications', value: stats?.pendingVerifications || 0, icon: UserCheck, color: 'text-gold' },
     { label: 'Active Pandits', value: stats?.activePandits || 0, icon: UserX, color: 'text-maroon' },
     { label: 'Pending Donations', value: stats?.pendingDonations || 0, icon: Gift, color: 'text-primary' },
-    { label: 'Upcoming Events', value: stats?.upcomingEvents || 0, icon: Calendar, color: 'text-gold' },
+    { label: 'Upcoming Yagyas', value: stats?.upcomingEvents || 0, icon: Calendar, color: 'text-gold' },
     { label: 'News Articles', value: stats?.totalNews || 0, icon: Newspaper, color: 'text-maroon' },
   ];
 

@@ -82,7 +82,7 @@ export default function Events() {
               className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4"
             >
               <Calendar className="w-4 h-4" />
-              Community Calendar
+              यज्ञ परंपरा
             </motion.span>
             <motion.h1
               initial={{ opacity: 0, y: 20 }}
@@ -90,7 +90,7 @@ export default function Events() {
               transition={{ delay: 0.1 }}
               className="font-heading text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-4"
             >
-              Upcoming <span className="text-gradient-saffron">Events</span>
+              महा<span className="text-gradient-saffron">यज्ञ</span>
             </motion.h1>
             <motion.p
               initial={{ opacity: 0, y: 20 }}
@@ -98,16 +98,16 @@ export default function Events() {
               transition={{ delay: 0.2 }}
               className="text-lg text-muted-foreground"
             >
-              Join us in celebrating our traditions and strengthening community bonds
+              विश्व कल्याण एवं राष्ट्र हित हेतु वैदिक शास्त्रीय विधि-विधान से आयोजित महायज्ञ
             </motion.p>
           </div>
 
           {/* Happening Now */}
           {happeningNowEvents.length > 0 && (
             <div className="mb-16">
-              <h2 className="font-heading text-2xl font-bold mb-6 flex items-center gap-2">
+            <h2 className="font-heading text-2xl font-bold mb-6 flex items-center gap-2">
                 <span className="w-3 h-3 rounded-full bg-red-500 animate-pulse"></span>
-                Happening Now
+                अभी चल रहा है
               </h2>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {happeningNowEvents.map((event, index) => (
@@ -163,13 +163,13 @@ export default function Events() {
                       </div>
 
                       <div className="flex gap-3">
-                        <Link to={`/events/${event.id}`}>
+                      <Link to={`/yagyas/${event.id}`}>
                           <Button variant="hero">
                             View Details
                           </Button>
                         </Link>
                         {event.youtube_live_url && (
-                          <Link to={`/events/${event.id}`}>
+                          <Link to={`/yagyas/${event.id}`}>
                             <Button variant="outline" className="bg-transparent border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10">
                               <Video className="w-4 h-4 mr-2" />
                               Watch Live
@@ -187,7 +187,7 @@ export default function Events() {
           {/* Featured Upcoming Events */}
           {featuredUpcoming.length > 0 && (
             <div className="mb-16">
-              <h2 className="font-heading text-2xl font-bold mb-6">Featured Upcoming Events</h2>
+              <h2 className="font-heading text-2xl font-bold mb-6">विशेष आगामी यज्ञ</h2>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {featuredUpcoming.map((event, index) => (
                   <motion.div
@@ -243,7 +243,7 @@ export default function Events() {
                         )}
                       </div>
 
-                      <Link to={`/events/${event.id}`}>
+                      <Link to={`/yagyas/${event.id}`}>
                         <Button variant="hero">
                           View Details
                         </Button>
@@ -258,7 +258,7 @@ export default function Events() {
           {/* All Upcoming Events */}
           {regularUpcoming.length > 0 && (
             <div className="mb-16">
-              <h2 className="font-heading text-2xl font-bold mb-6">Upcoming Events</h2>
+              <h2 className="font-heading text-2xl font-bold mb-6">आगामी यज्ञ</h2>
               <div className="space-y-4">
                 {regularUpcoming.map((event, index) => (
                   <motion.div
@@ -268,7 +268,7 @@ export default function Events() {
                     transition={{ delay: index * 0.1 }}
                     className="group rounded-xl bg-card border border-border hover:border-primary/30 hover:shadow-lg transition-all overflow-hidden"
                   >
-                    <Link to={`/events/${event.id}`} className="flex flex-col md:flex-row md:items-center">
+                    <Link to={`/yagyas/${event.id}`} className="flex flex-col md:flex-row md:items-center">
                       {/* Event Image */}
                       {event.image_url && (
                         <div className="w-full md:w-48 h-32 md:h-full shrink-0">
@@ -352,7 +352,7 @@ export default function Events() {
           {/* Past Events */}
           {pastEvents.length > 0 && (
             <div>
-              <h2 className="font-heading text-2xl font-bold mb-6 text-muted-foreground">Past Events</h2>
+              <h2 className="font-heading text-2xl font-bold mb-6 text-muted-foreground">संपन्न यज्ञ</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {pastEvents.slice(0, 6).map((event, index) => (
                   <motion.div
@@ -361,7 +361,7 @@ export default function Events() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.05 }}
                   >
-                    <Link to={`/events/${event.id}`}>
+                    <Link to={`/yagyas/${event.id}`}>
                       <div className="group rounded-xl bg-card border border-border hover:border-muted-foreground/30 transition-all overflow-hidden opacity-70 hover:opacity-100">
                         {event.image_url && (
                           <div className="h-32 overflow-hidden">

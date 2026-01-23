@@ -36,6 +36,9 @@ const App = () => (
             <Route path="/donations" element={<Donations />} />
             <Route path="/live" element={<Live />} />
             <Route path="/gallery" element={<Gallery />} />
+            <Route path="/yagyas" element={<Events />} />
+            <Route path="/yagyas/:id" element={<EventDetail />} />
+            {/* Legacy routes for backward compatibility */}
             <Route path="/events" element={<Events />} />
             <Route path="/events/:id" element={<EventDetail />} />
             <Route path="/about" element={<About />} />
