@@ -17,7 +17,24 @@ import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 
-const EVENT_TYPES = ['Festival', 'Puja', 'Workshop', 'Meeting', 'Celebration', 'Event'];
+const YAGYA_TYPES = [
+  'महायज्ञ (Mahayagya)',
+  'लक्षचंडी महायज्ञ',
+  'अयुतचंडी महायज्ञ', 
+  'सहस्रचंडी महायज्ञ',
+  'कोटि श्री महायज्ञ',
+  'अति रुद्र महायज्ञ',
+  'ब्रह्मास्त्र महायज्ञ',
+  'धनवर्षा लक्ष्मी महायज्ञ',
+  'महालक्ष्मी महायज्ञ',
+  'श्री लक्ष्मी महायज्ञ',
+  'गणेश लक्ष्मी महायज्ञ',
+  'Yagya',
+  'Puja',
+  'Festival',
+  'Celebration',
+  'Event'
+];
 const REGISTRATION_LIMITS = [
   { label: 'Unlimited', value: null },
   { label: '50 people', value: 50 },
@@ -51,7 +68,7 @@ const initialFormData: EventFormData = {
   youtube_live_url: '',
   is_live: false,
   is_featured: false,
-  event_type: 'Event',
+  event_type: 'महायज्ञ (Mahayagya)',
   registration_limit: null,
   map_url: '',
   image_url: null,
@@ -233,10 +250,10 @@ export function EventManager() {
   return (
     <>
       <div className="flex justify-between items-center mb-6">
-        <h2 className="font-heading text-xl font-semibold">Events</h2>
+        <h2 className="font-heading text-xl font-semibold">यज्ञ प्रबंधन (Yagya Manager)</h2>
         <Button variant="hero" onClick={handleOpenCreate}>
           <Plus className="w-4 h-4 mr-2" />
-          Add Event
+          नया यज्ञ जोड़ें
         </Button>
       </div>
 
@@ -250,7 +267,7 @@ export function EventManager() {
               </div>
               <div>
                 <p className="text-xl font-bold">{events?.length || 0}</p>
-                <p className="text-xs text-muted-foreground">Total</p>
+                <p className="text-xs text-muted-foreground">कुल यज्ञ</p>
               </div>
             </div>
           </CardContent>
@@ -263,7 +280,7 @@ export function EventManager() {
               </div>
               <div>
                 <p className="text-xl font-bold">{upcomingCount}</p>
-                <p className="text-xs text-muted-foreground">Upcoming</p>
+                <p className="text-xs text-muted-foreground">आगामी</p>
               </div>
             </div>
           </CardContent>
@@ -276,7 +293,7 @@ export function EventManager() {
               </div>
               <div>
                 <p className="text-xl font-bold">{pastCount}</p>
-                <p className="text-xs text-muted-foreground">Past</p>
+                <p className="text-xs text-muted-foreground">संपन्न</p>
               </div>
             </div>
           </CardContent>
@@ -302,7 +319,7 @@ export function EventManager() {
               </div>
               <div>
                 <p className="text-xl font-bold">{featuredCount}</p>
-                <p className="text-xs text-muted-foreground">Featured</p>
+                <p className="text-xs text-muted-foreground">विशेष</p>
               </div>
             </div>
           </CardContent>
@@ -402,7 +419,7 @@ export function EventManager() {
         {!events?.length && (
           <Card className="border-border shadow-temple">
             <CardContent className="py-12 text-center">
-              <p className="text-muted-foreground">No events created yet</p>
+              <p className="text-muted-foreground">अभी कोई यज्ञ नहीं बनाया गया</p>
             </CardContent>
           </Card>
         )}
@@ -411,12 +428,12 @@ export function EventManager() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingId ? 'Edit Event' : 'Add New Event'}</DialogTitle>
+            <DialogTitle>{editingId ? 'यज्ञ संपादित करें' : 'नया यज्ञ जोड़ें'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             {/* Image Upload */}
             <div className="space-y-2">
-              <Label>Event Image</Label>
+              <Label>यज्ञ चित्र</Label>
               {formData.image_url ? (
                 <div className="relative w-full h-48 rounded-lg overflow-hidden bg-muted">
                   <img 
@@ -459,22 +476,22 @@ export function EventManager() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="title">Title *</Label>
+                <Label htmlFor="title">यज्ञ शीर्षक *</Label>
                 <Input
                   id="title"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  placeholder="Event title"
+                  placeholder="यज्ञ का नाम"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="event_type">Event Type</Label>
+                <Label htmlFor="event_type">यज्ञ प्रकार</Label>
                 <Select value={formData.event_type} onValueChange={(v) => setFormData({ ...formData, event_type: v })}>
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder="यज्ञ प्रकार चुनें" />
                   </SelectTrigger>
                   <SelectContent>
-                    {EVENT_TYPES.map((type) => (
+                    {YAGYA_TYPES.map((type) => (
                       <SelectItem key={type} value={type}>{type}</SelectItem>
                     ))}
                   </SelectContent>
@@ -483,19 +500,19 @@ export function EventManager() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description">विवरण</Label>
               <Textarea
                 id="description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Event description"
-                rows={3}
+                placeholder="यज्ञ का विस्तृत विवरण, उद्देश्य, विशेष कार्यक्रम आदि"
+                rows={6}
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="event_date">Start Date & Time *</Label>
+                <Label htmlFor="event_date">प्रारंभ तिथि एवं समय *</Label>
                 <Input
                   id="event_date"
                   type="datetime-local"
@@ -504,7 +521,7 @@ export function EventManager() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="end_date">End Date & Time</Label>
+                <Label htmlFor="end_date">समापन तिथि एवं समय</Label>
                 <Input
                   id="end_date"
                   type="datetime-local"
@@ -515,12 +532,12 @@ export function EventManager() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="location">Location</Label>
+              <Label htmlFor="location">स्थान</Label>
               <Input
                 id="location"
                 value={formData.location}
                 onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                placeholder="Event location"
+                placeholder="यज्ञ स्थल का पूरा पता"
               />
             </div>
 
@@ -538,7 +555,7 @@ export function EventManager() {
             </div>
 
             <div className="space-y-2">
-              <Label>Registration Limit</Label>
+              <Label>पंजीकरण सीमा</Label>
               <div className="grid grid-cols-3 gap-2">
                 {REGISTRATION_LIMITS.map((limit) => (
                   <Button
@@ -581,7 +598,7 @@ export function EventManager() {
                   checked={formData.is_live}
                   onCheckedChange={(checked) => setFormData({ ...formData, is_live: checked })}
                 />
-                <Label htmlFor="live">Is Live Now</Label>
+                <Label htmlFor="live">अभी लाइव है</Label>
               </div>
               <div className="flex items-center gap-2">
                 <Switch
@@ -589,20 +606,20 @@ export function EventManager() {
                   checked={formData.is_featured}
                   onCheckedChange={(checked) => setFormData({ ...formData, is_featured: checked })}
                 />
-                <Label htmlFor="featured">Featured</Label>
+                <Label htmlFor="featured">विशेष यज्ञ</Label>
               </div>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
-              Cancel
+              रद्द करें
             </Button>
             <Button
               variant="hero"
               onClick={handleSubmit}
               disabled={!formData.title.trim() || !formData.event_date || createEvent.isPending || updateEvent.isPending}
             >
-              {editingId ? 'Update' : 'Create'}
+              {editingId ? 'अपडेट करें' : 'बनाएं'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -611,18 +628,18 @@ export function EventManager() {
       <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Event</AlertDialogTitle>
+            <AlertDialogTitle>यज्ञ हटाएं</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this event? This action cannot be undone.
+              क्या आप वाकई इस यज्ञ को हटाना चाहते हैं? यह क्रिया पूर्ववत नहीं की जा सकती।
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>रद्द करें</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Delete
+              हटाएं
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
