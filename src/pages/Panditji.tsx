@@ -186,7 +186,7 @@ function StarRating({ rating }: { rating: number }) {
 }
 
 export default function Panditji() {
-  const { isVerified } = useAuth();
+  const { user, isVerified } = useAuth();
   const { data: pandits, isLoading } = useActivePandits();
   const { data: expertiseOptions } = usePanditExpertiseOptions();
   const { data: panditRatings } = usePanditRatings();
@@ -229,6 +229,105 @@ export default function Panditji() {
       setShowLoginModal(true);
     }
   };
+
+  // Locked state for non-logged-in users
+  if (!user) {
+    return (
+      <Layout>
+        <section className="py-12 lg:py-20">
+          <div className="container mx-auto px-4">
+            {/* Header */}
+            <div className="text-center max-w-3xl mx-auto mb-12">
+              <motion.span
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="inline-block px-4 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4"
+              >
+                पंडित सेवा
+              </motion.span>
+              <motion.h1
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="font-heading text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-4"
+              >
+                पंडितजी <span className="text-gradient-saffron">डायरेक्टरी</span>
+              </motion.h1>
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="text-lg text-muted-foreground"
+              >
+                अनुभवी और प्रमाणित पंडितजी से जुड़ें
+              </motion.p>
+            </div>
+
+            {/* Locked Content */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="relative"
+            >
+              {/* Decorative background grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[1, 2, 3, 4, 5, 6].map((_, index) => (
+                  <div
+                    key={index}
+                    className="p-6 rounded-2xl bg-gradient-to-br from-muted/50 to-muted border border-border"
+                  >
+                    <div className="flex items-start gap-4 mb-4">
+                      <div className="w-24 h-24 rounded-xl bg-muted-foreground/10 flex items-center justify-center">
+                        <Lock className="w-8 h-8 text-muted-foreground/30" />
+                      </div>
+                      <div className="flex-1 space-y-2">
+                        <div className="h-5 bg-muted-foreground/10 rounded w-3/4"></div>
+                        <div className="h-4 bg-muted-foreground/10 rounded w-1/2"></div>
+                        <div className="h-4 bg-muted-foreground/10 rounded w-2/3"></div>
+                      </div>
+                    </div>
+                    <div className="h-12 bg-muted-foreground/10 rounded mb-4"></div>
+                    <div className="flex gap-2">
+                      <div className="h-8 bg-muted-foreground/10 rounded flex-1"></div>
+                      <div className="h-8 bg-muted-foreground/10 rounded flex-1"></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Overlay with login prompt */}
+              <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-b from-background/30 via-background/60 to-background/30">
+                <div className="bg-card/95 backdrop-blur-md border border-border rounded-2xl p-8 md:p-12 text-center shadow-temple max-w-md mx-4">
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/20 to-saffron/20 flex items-center justify-center mx-auto mb-6">
+                    <Lock className="w-10 h-10 text-primary" />
+                  </div>
+                  <h3 className="font-heading text-xl md:text-2xl font-bold text-foreground mb-3">
+                    पंडितजी से जुड़ें
+                  </h3>
+                  <p className="text-muted-foreground mb-6">
+                    हमारे अनुभवी और प्रमाणित पंडितजी की जानकारी देखने और संपर्क करने के लिए लॉगिन करें
+                  </p>
+                  <Link to="/login">
+                    <Button variant="hero" size="lg" className="gap-2">
+                      <Lock className="w-4 h-4" />
+                      लॉगिन करें
+                    </Button>
+                  </Link>
+                  <p className="text-xs text-muted-foreground mt-4">
+                    खाता नहीं है?{' '}
+                    <Link to="/register" className="text-primary hover:underline">
+                      पंजीकरण करें
+                    </Link>
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        </section>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>

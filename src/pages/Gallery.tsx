@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Download, Lock, Search, X, ZoomIn, Calendar, Loader2 } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Download, Lock, Search, ZoomIn, Calendar, Loader2 } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
+import { Link } from 'react-router-dom';
 
 interface GalleryImage {
   id: string;
@@ -25,12 +26,12 @@ interface GalleryImage {
 }
 
 export default function Gallery() {
-  const { isVerified } = useAuth();
+  const { user, isVerified } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedEvent, setSelectedEvent] = useState('All');
   const [selectedImage, setSelectedImage] = useState<GalleryImage | null>(null);
 
-  // Fetch gallery images from database
+  // Fetch gallery images from database - only if logged in
   const { data: images, isLoading } = useQuery({
     queryKey: ['public-gallery-images', isVerified],
     queryFn: async () => {
@@ -42,6 +43,7 @@ export default function Gallery() {
       if (error) throw error;
       return data as GalleryImage[];
     },
+    enabled: !!user,
   });
 
   // Get unique event names for filter
@@ -70,6 +72,95 @@ export default function Gallery() {
     }
     return url;
   };
+
+  // Locked state for non-logged-in users
+  if (!user) {
+    return (
+      <Layout>
+        <section className="py-12 lg:py-20">
+          <div className="container mx-auto px-4">
+            {/* Header */}
+            <div className="text-center max-w-3xl mx-auto mb-12">
+              <motion.span
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="inline-block px-4 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4"
+              >
+                यादें
+              </motion.span>
+              <motion.h1
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="font-heading text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-4"
+              >
+                यज्ञ <span className="text-gradient-saffron">गैलरी</span>
+              </motion.h1>
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="text-lg text-muted-foreground"
+              >
+                हमारे समुदाय के यज्ञों और उत्सवों की यादें
+              </motion.p>
+            </div>
+
+            {/* Locked Content */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="relative"
+            >
+              {/* Decorative background grid */}
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6">
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((_, index) => (
+                  <div
+                    key={index}
+                    className="aspect-[4/3] rounded-xl bg-gradient-to-br from-muted/50 to-muted overflow-hidden"
+                  >
+                    <div className="w-full h-full flex items-center justify-center">
+                      <div className="w-12 h-12 rounded-full bg-muted-foreground/10 flex items-center justify-center">
+                        <Lock className="w-5 h-5 text-muted-foreground/30" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Overlay with login prompt */}
+              <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-b from-background/30 via-background/60 to-background/30">
+                <div className="bg-card/95 backdrop-blur-md border border-border rounded-2xl p-8 md:p-12 text-center shadow-temple max-w-md mx-4">
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/20 to-saffron/20 flex items-center justify-center mx-auto mb-6">
+                    <Lock className="w-10 h-10 text-primary" />
+                  </div>
+                  <h3 className="font-heading text-xl md:text-2xl font-bold text-foreground mb-3">
+                    यज्ञ गैलरी देखें
+                  </h3>
+                  <p className="text-muted-foreground mb-6">
+                    हमारे समुदाय के यज्ञों, उत्सवों और आध्यात्मिक आयोजनों की तस्वीरें देखने के लिए लॉगिन करें
+                  </p>
+                  <Link to="/login">
+                    <Button variant="hero" size="lg" className="gap-2">
+                      <Lock className="w-4 h-4" />
+                      लॉगिन करें
+                    </Button>
+                  </Link>
+                  <p className="text-xs text-muted-foreground mt-4">
+                    खाता नहीं है?{' '}
+                    <Link to="/register" className="text-primary hover:underline">
+                      पंजीकरण करें
+                    </Link>
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        </section>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
