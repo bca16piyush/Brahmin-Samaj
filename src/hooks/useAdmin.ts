@@ -95,6 +95,42 @@ export function useRejectVerification() {
   });
 }
 
+// Delete user via secure edge function
+export function useDeleteUser() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (userId: string) => {
+      const { data, error } = await supabase.functions.invoke('admin-operations', {
+        body: {
+          action: 'delete_user',
+          userId,
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-all-users'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-verifications'] });
+      toast({
+        title: 'User Deleted',
+        description: 'User has been permanently deleted from the system.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
 // Pandit Expertise Options
 export function usePanditExpertiseOptions() {
   return useQuery({
