@@ -9,6 +9,16 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
@@ -66,6 +76,7 @@ export function RegistrationManager() {
   const [showBulkDialog, setShowBulkDialog] = useState(false);
   const [manualForm, setManualForm] = useState({ email: '', name: '', mobile: '' });
   const [bulkResults, setBulkResults] = useState<{ success: number; failed: number; errors: string[]; skipped: string[] } | null>(null);
+  const [showReminderConfirm, setShowReminderConfirm] = useState(false);
 
   // Fetch all events for the dropdown
   const { data: events, isLoading: eventsLoading } = useQuery({
@@ -126,12 +137,16 @@ export function RegistrationManager() {
 
   const handleSendReminders = () => {
     if (!selectedEvent) return;
+    setShowReminderConfirm(false);
     sendReminders.mutate({
       eventId: selectedEvent.id,
       eventTitle: selectedEvent.title,
       eventDate: selectedEvent.event_date,
     });
   };
+
+  // Get count of users who haven't received reminders yet
+  const pendingReminderCount = registrations?.filter(r => !r.reminder_sent).length || 0;
 
   const manualRegister = useMutation({
     mutationFn: async (data: { email: string; name: string; mobile: string }) => {
@@ -591,14 +606,57 @@ export function RegistrationManager() {
               </Select>
             </div>
             {selectedEvent && new Date(selectedEvent.event_date) >= new Date() && (
-              <Button
-                variant="outline"
-                onClick={handleSendReminders}
-                disabled={sendReminders.isPending || registeredCount === 0}
-              >
-                <Bell className="w-4 h-4 mr-2" />
-                {sendReminders.isPending ? 'भेज रहा है...' : 'रिमाइंडर भेजें'}
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowReminderConfirm(true)}
+                  disabled={sendReminders.isPending || registeredCount === 0}
+                >
+                  <Bell className="w-4 h-4 mr-2" />
+                  {sendReminders.isPending ? 'भेज रहा है...' : 'रिमाइंडर भेजें'}
+                </Button>
+
+                {/* Reminder Confirmation Dialog */}
+                <AlertDialog open={showReminderConfirm} onOpenChange={setShowReminderConfirm}>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle className="flex items-center gap-2">
+                        <Bell className="w-5 h-5 text-primary" />
+                        रिमाइंडर भेजने की पुष्टि करें
+                      </AlertDialogTitle>
+                      <AlertDialogDescription className="space-y-4">
+                        <p>
+                          आप <strong>{selectedEvent.title}</strong> के लिए पंजीकृत उपयोगकर्ताओं को रिमाइंडर भेजने वाले हैं।
+                        </p>
+                        <div className="bg-muted p-4 rounded-lg space-y-2">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">कुल पंजीकृत:</span>
+                            <span className="font-semibold">{registeredCount} users</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">रिमाइंडर बाकी:</span>
+                            <span className="font-semibold">{pendingReminderCount} users</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">यज्ञ तिथि:</span>
+                            <span className="font-semibold">{format(new Date(selectedEvent.event_date), 'PPP')}</span>
+                          </div>
+                        </div>
+                        <p className="text-sm text-amber-600 dark:text-amber-400">
+                          ⚠️ यह सभी पंजीकृत उपयोगकर्ताओं को WhatsApp संदेश भेजेगा जिन्होंने अभी तक रिमाइंडर प्राप्त नहीं किया है।
+                        </p>
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>रद्द करें</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleSendReminders}>
+                        <Bell className="w-4 h-4 mr-2" />
+                        रिमाइंडर भेजें ({pendingReminderCount})
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </>
             )}
           </div>
         </CardContent>
