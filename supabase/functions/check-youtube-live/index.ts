@@ -23,6 +23,62 @@ interface YouTubeSearchResponse {
   }[];
 }
 
+// Helper to log audit events
+async function logAuditEvent(
+  supabase: any,
+  adminId: string,
+  action: string,
+  resourceType: string,
+  resourceId: string | null,
+  details: Record<string, unknown>,
+  req: Request
+) {
+  try {
+    const { error } = await supabase.from('admin_audit_logs').insert({
+      admin_id: adminId,
+      action,
+      resource_type: resourceType,
+      resource_id: resourceId,
+      details,
+      ip_address: req.headers.get('x-forwarded-for') || req.headers.get('cf-connecting-ip') || 'unknown',
+      user_agent: req.headers.get('user-agent') || 'unknown',
+    });
+    
+    if (error) {
+      console.error('Failed to log audit event:', error);
+    }
+  } catch (err) {
+    console.error('Error in logAuditEvent:', err);
+  }
+}
+
+// Helper to check rate limit
+async function checkRateLimit(
+  supabase: any,
+  userId: string,
+  action: string,
+  maxRequests = 10
+): Promise<boolean> {
+  try {
+    const { data, error } = await supabase.rpc('check_rate_limit', {
+      _user_id: userId,
+      _action: action,
+      _max_requests: maxRequests,
+      _window_minutes: 1,
+    });
+    
+    if (error) {
+      console.error('Rate limit check failed:', error);
+      return true;
+    }
+    
+    return data === true;
+  } catch (err) {
+    console.error('Error in checkRateLimit:', err);
+    return true;
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -59,9 +115,20 @@ serve(async (req) => {
       .maybeSingle();
 
     if (!roleData) {
+      await logAuditEvent(supabase, user.id, 'unauthorized_youtube_check', 'youtube', null, {}, req);
       return new Response(
         JSON.stringify({ error: 'Admin access required' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Check rate limit (10 requests per minute for YouTube API)
+    const withinLimit = await checkRateLimit(supabase, user.id, 'check_youtube_live', 10);
+    if (!withinLimit) {
+      await logAuditEvent(supabase, user.id, 'rate_limit_exceeded', 'youtube', null, {}, req);
+      return new Response(
+        JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -90,6 +157,11 @@ serve(async (req) => {
     const { channelId } = validation.data;
 
     console.log(`Checking live status for channel: ${channelId}`);
+
+    // Log audit event
+    await logAuditEvent(supabase, user.id, 'check_youtube_live', 'youtube', null, {
+      channel_id: channelId,
+    }, req);
 
     // Search for live streams on the channel
     const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${encodeURIComponent(channelId)}&eventType=live&type=video&key=${youtubeApiKey}`;

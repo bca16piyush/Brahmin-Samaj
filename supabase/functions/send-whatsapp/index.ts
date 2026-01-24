@@ -16,6 +16,62 @@ const inputSchema = z.object({
   body: z.string().min(1, 'Body is required').max(2000, 'Body too long'),
 });
 
+// Helper to log audit events
+async function logAuditEvent(
+  supabase: any,
+  adminId: string,
+  action: string,
+  resourceType: string,
+  resourceId: string | null,
+  details: Record<string, unknown>,
+  req: Request
+) {
+  try {
+    const { error } = await supabase.from('admin_audit_logs').insert({
+      admin_id: adminId,
+      action,
+      resource_type: resourceType,
+      resource_id: resourceId,
+      details,
+      ip_address: req.headers.get('x-forwarded-for') || req.headers.get('cf-connecting-ip') || 'unknown',
+      user_agent: req.headers.get('user-agent') || 'unknown',
+    });
+    
+    if (error) {
+      console.error('Failed to log audit event:', error);
+    }
+  } catch (err) {
+    console.error('Error in logAuditEvent:', err);
+  }
+}
+
+// Helper to check rate limit
+async function checkRateLimit(
+  supabase: any,
+  userId: string,
+  action: string,
+  maxRequests = 10
+): Promise<boolean> {
+  try {
+    const { data, error } = await supabase.rpc('check_rate_limit', {
+      _user_id: userId,
+      _action: action,
+      _max_requests: maxRequests,
+      _window_minutes: 1,
+    });
+    
+    if (error) {
+      console.error('Rate limit check failed:', error);
+      return true;
+    }
+    
+    return data === true;
+  } catch (err) {
+    console.error('Error in checkRateLimit:', err);
+    return true;
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -52,9 +108,20 @@ serve(async (req) => {
       .maybeSingle();
 
     if (!roleData) {
+      await logAuditEvent(supabase, user.id, 'unauthorized_whatsapp_attempt', 'whatsapp', null, {}, req);
       return new Response(
         JSON.stringify({ error: 'Admin access required' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Check rate limit (20 requests per minute for WhatsApp)
+    const withinLimit = await checkRateLimit(supabase, user.id, 'send_whatsapp', 20);
+    if (!withinLimit) {
+      await logAuditEvent(supabase, user.id, 'rate_limit_exceeded', 'whatsapp', null, {}, req);
+      return new Response(
+        JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -89,10 +156,8 @@ serve(async (req) => {
     let recipients: string[] = [];
 
     if (message.recipientPhone) {
-      // Single recipient
       recipients = [message.recipientPhone];
     } else if (message.userId) {
-      // Get specific user's WhatsApp number
       const { data: subscription } = await supabase
         .from('notification_subscriptions')
         .select('whatsapp_number')
@@ -104,7 +169,6 @@ serve(async (req) => {
         recipients = [subscription.whatsapp_number];
       }
     } else {
-      // Broadcast to all subscribers
       const { data: subscriptions } = await supabase
         .from('notification_subscriptions')
         .select('whatsapp_number')
@@ -113,12 +177,19 @@ serve(async (req) => {
 
       if (subscriptions) {
         recipients = subscriptions
-          .map((s) => s.whatsapp_number)
-          .filter((n): n is string => n !== null);
+          .map((s: any) => s.whatsapp_number)
+          .filter((n: string | null): n is string => n !== null);
       }
     }
 
     console.log(`Sending to ${recipients.length} recipients`);
+
+    // Log audit event
+    await logAuditEvent(supabase, user.id, 'send_whatsapp', 'notification', null, {
+      type: message.type,
+      title: message.title,
+      recipient_count: recipients.length,
+    }, req);
 
     const results = await Promise.allSettled(
       recipients.map(async (phone) => {

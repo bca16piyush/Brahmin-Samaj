@@ -14,6 +14,62 @@ const inputSchema = z.object({
   eventDate: z.string().min(1, 'Event date is required'),
 });
 
+// Helper to log audit events
+async function logAuditEvent(
+  supabase: any,
+  adminId: string,
+  action: string,
+  resourceType: string,
+  resourceId: string | null,
+  details: Record<string, unknown>,
+  req: Request
+) {
+  try {
+    const { error } = await supabase.from('admin_audit_logs').insert({
+      admin_id: adminId,
+      action,
+      resource_type: resourceType,
+      resource_id: resourceId,
+      details,
+      ip_address: req.headers.get('x-forwarded-for') || req.headers.get('cf-connecting-ip') || 'unknown',
+      user_agent: req.headers.get('user-agent') || 'unknown',
+    });
+    
+    if (error) {
+      console.error('Failed to log audit event:', error);
+    }
+  } catch (err) {
+    console.error('Error in logAuditEvent:', err);
+  }
+}
+
+// Helper to check rate limit
+async function checkRateLimit(
+  supabase: any,
+  userId: string,
+  action: string,
+  maxRequests = 10
+): Promise<boolean> {
+  try {
+    const { data, error } = await supabase.rpc('check_rate_limit', {
+      _user_id: userId,
+      _action: action,
+      _max_requests: maxRequests,
+      _window_minutes: 1,
+    });
+    
+    if (error) {
+      console.error('Rate limit check failed:', error);
+      return true;
+    }
+    
+    return data === true;
+  } catch (err) {
+    console.error('Error in checkRateLimit:', err);
+    return true;
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -50,9 +106,20 @@ serve(async (req) => {
       .maybeSingle();
 
     if (!roleData) {
+      await logAuditEvent(supabase, user.id, 'unauthorized_reminder_attempt', 'event_reminders', null, {}, req);
       return new Response(
         JSON.stringify({ error: 'Admin access required' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Check rate limit (10 requests per minute for reminders)
+    const withinLimit = await checkRateLimit(supabase, user.id, 'send_event_reminders', 10);
+    if (!withinLimit) {
+      await logAuditEvent(supabase, user.id, 'rate_limit_exceeded', 'event_reminders', null, {}, req);
+      return new Response(
+        JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -75,6 +142,12 @@ serve(async (req) => {
     const { eventId, eventTitle, eventDate } = validation.data;
 
     console.log(`Sending reminders for event: ${eventTitle} (${eventId})`);
+
+    // Log audit event
+    await logAuditEvent(supabase, user.id, 'send_event_reminders', 'event', eventId, {
+      event_title: eventTitle,
+      event_date: eventDate,
+    }, req);
 
     // Get all registered users for this event who haven't received a reminder
     const { data: registrations, error: regError } = await supabase
@@ -122,7 +195,7 @@ serve(async (req) => {
     // Send WhatsApp notifications if configured
     if (whatsappToken && phoneNumberId) {
       // Get WhatsApp numbers for registered users
-      const userIds = registrations.map(r => r.user_id);
+      const userIds = registrations.map((r: any) => r.user_id);
       const { data: subscriptions } = await supabase
         .from('notification_subscriptions')
         .select('user_id, whatsapp_number')
@@ -131,7 +204,7 @@ serve(async (req) => {
         .not('whatsapp_number', 'is', null);
 
       const whatsappMap = new Map(
-        subscriptions?.map(s => [s.user_id, s.whatsapp_number]) || []
+        subscriptions?.map((s: any) => [s.user_id, s.whatsapp_number]) || []
       );
 
       for (const reg of registrations) {
@@ -183,7 +256,7 @@ serve(async (req) => {
 
     // Also update reminder_sent for all registrations even if no WhatsApp
     // This prevents duplicate reminders
-    const regIds = registrations.map(r => r.id);
+    const regIds = registrations.map((r: any) => r.id);
     await supabase
       .from('event_registrations')
       .update({ reminder_sent: true })
