@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, AlertTriangle, Bell, Calendar } from 'lucide-react';
+import { Plus, AlertTriangle, Bell, Calendar, Users } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,10 +8,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useNews, useCreateNews } from '@/hooks/useAdmin';
 import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
+import { useQuery } from '@tanstack/react-query';
 
 export function NewsPublisher() {
   const { data: newsItems, isLoading } = useNews();
@@ -19,6 +22,7 @@ export function NewsPublisher() {
   const { user } = useAuth();
   
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [confirmBroadcastOpen, setConfirmBroadcastOpen] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     content: '',
@@ -26,14 +30,41 @@ export function NewsPublisher() {
     send_notification: false,
   });
 
+  // Fetch subscriber count for broadcast confirmation
+  const { data: subscriberCount } = useQuery({
+    queryKey: ['whatsapp-subscriber-count'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('notification_subscriptions')
+        .select('*', { count: 'exact', head: true })
+        .eq('whatsapp_notifications', true)
+        .not('whatsapp_number', 'is', null);
+      
+      if (error) throw error;
+      return count || 0;
+    },
+    enabled: dialogOpen,
+  });
+
   const handleSubmit = () => {
     if (!formData.title.trim() || !formData.content.trim()) return;
     
+    // If notification is enabled, show confirmation dialog first
+    if (formData.send_notification && subscriberCount && subscriberCount > 0) {
+      setConfirmBroadcastOpen(true);
+      return;
+    }
+    
+    executeSubmit();
+  };
+
+  const executeSubmit = () => {
     createNews.mutate({
       ...formData,
       created_by: user?.id || null,
     });
     setDialogOpen(false);
+    setConfirmBroadcastOpen(false);
     setFormData({ title: '', content: '', is_urgent: false, send_notification: false });
   };
 
@@ -148,6 +179,14 @@ export function NewsPublisher() {
                 <Label htmlFor="notify">Send Notification</Label>
               </div>
             </div>
+            {formData.send_notification && subscriberCount !== undefined && subscriberCount > 0 && (
+              <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
+                <Users className="w-4 h-4 text-amber-600" />
+                <span className="text-sm text-amber-700 dark:text-amber-400">
+                  This will send a WhatsApp message to <strong>{subscriberCount}</strong> subscriber{subscriberCount !== 1 ? 's' : ''}
+                </span>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
@@ -163,6 +202,39 @@ export function NewsPublisher() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Broadcast Confirmation Dialog */}
+      <AlertDialog open={confirmBroadcastOpen} onOpenChange={setConfirmBroadcastOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Bell className="w-5 h-5 text-amber-500" />
+              Confirm Broadcast
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <p>
+                You are about to send a WhatsApp notification to <strong className="text-foreground">{subscriberCount}</strong> subscriber{subscriberCount !== 1 ? 's' : ''}.
+              </p>
+              <div className="p-3 bg-muted rounded-lg">
+                <p className="font-medium text-foreground">{formData.is_urgent ? `🚨 URGENT: ${formData.title}` : formData.title}</p>
+                <p className="text-sm mt-1 line-clamp-3">{formData.content}</p>
+              </div>
+              <p className="text-amber-600 dark:text-amber-400">
+                ⚠️ This action cannot be undone. All subscribers will receive this message immediately.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={executeSubmit}
+              className="bg-amber-600 hover:bg-amber-700"
+            >
+              Yes, Send to {subscriberCount} Subscribers
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

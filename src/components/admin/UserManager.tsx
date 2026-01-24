@@ -12,6 +12,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import { useDeleteUser } from '@/hooks/useAdmin';
 
 const SAMPLE_CSV_CONTENT = `name,email,mobile,gotra,father_name,native_village
 Rajesh Sharma,rajesh@example.com,9876543210,Bharadwaj,Ramesh Sharma,Jaipur
@@ -156,32 +157,8 @@ export function UserManager() {
     },
   });
 
-  // Delete user mutation (deletes profile, auth user remains but profile is removed)
-  const deleteUser = useMutation({
-    mutationFn: async (userId: string) => {
-      // Delete from profiles table
-      const { error } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', userId);
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-all-users'] });
-      toast({
-        title: 'User Deleted',
-        description: 'User profile has been deleted.',
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
-    },
-  });
+  // Delete user mutation - uses secure edge function for proper auth deletion
+  const deleteUser = useDeleteUser();
 
   // Bulk create users mutation - stores user data in profiles for auto-approval on signup
   const bulkCreateUsers = useMutation({
