@@ -657,15 +657,22 @@ export function UserManager() {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 text-destructive hover:text-destructive"
+                          disabled={deleteUser.isPending}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          {deleteUser.isPending && deleteUser.variables === user.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
                         </Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
                           <AlertDialogTitle>Delete User</AlertDialogTitle>
                           <AlertDialogDescription>
-                            Are you sure you want to delete {user.name}'s profile? This action cannot be undone.
+                            Are you sure you want to delete <strong>{user.name}</strong>'s account? 
+                            This will permanently remove their profile and authentication data. 
+                            This action cannot be undone.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
@@ -673,8 +680,16 @@ export function UserManager() {
                           <AlertDialogAction
                             onClick={() => deleteUser.mutate(user.id)}
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            disabled={deleteUser.isPending}
                           >
-                            Delete
+                            {deleteUser.isPending ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Deleting...
+                              </>
+                            ) : (
+                              'Delete'
+                            )}
                           </AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>

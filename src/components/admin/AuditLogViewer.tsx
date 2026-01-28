@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Search, Filter, Calendar, User, Activity, Clock, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Search, Filter, Calendar, User, Activity, Clock, ChevronDown, ChevronUp, RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,9 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { format, subDays, startOfDay, endOfDay } from 'date-fns';
+import { format, subDays, startOfDay } from 'date-fns';
+import { useToast } from '@/hooks/use-toast';
 
 interface AuditLog {
   id: string;
@@ -49,11 +50,60 @@ const DATE_PRESETS = [
 ];
 
 export function AuditLogViewer() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedAction, setSelectedAction] = useState<string>('all');
   const [selectedAdmin, setSelectedAdmin] = useState<string>('all');
   const [datePreset, setDatePreset] = useState<string>('7days');
   const [expandedLogs, setExpandedLogs] = useState<Set<string>>(new Set());
+  const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
+  const [newLogIds, setNewLogIds] = useState<Set<string>>(new Set());
+
+  // Set up realtime subscription
+  useEffect(() => {
+    const channel = supabase
+      .channel('audit-logs-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'admin_audit_logs',
+        },
+        (payload) => {
+          // Add the new log ID to highlight it
+          const newId = (payload.new as any).id;
+          setNewLogIds(prev => new Set(prev).add(newId));
+          
+          // Invalidate the query to refetch
+          queryClient.invalidateQueries({ queryKey: ['admin-audit-logs'] });
+          
+          // Show toast notification
+          const action = (payload.new as any).action;
+          toast({
+            title: 'New Audit Log',
+            description: `Action: ${action?.replace(/_/g, ' ')}`,
+          });
+          
+          // Clear highlight after 5 seconds
+          setTimeout(() => {
+            setNewLogIds(prev => {
+              const next = new Set(prev);
+              next.delete(newId);
+              return next;
+            });
+          }, 5000);
+        }
+      )
+      .subscribe((status) => {
+        setIsRealtimeConnected(status === 'SUBSCRIBED');
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient, toast]);
 
   // Fetch admin users for filter dropdown
   const { data: admins } = useQuery({
@@ -163,7 +213,22 @@ export function AuditLogViewer() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <h2 className="font-heading text-xl font-semibold">Audit Log Viewer</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="font-heading text-xl font-semibold">Audit Log Viewer</h2>
+          <Badge variant={isRealtimeConnected ? 'default' : 'secondary'} className="flex items-center gap-1">
+            {isRealtimeConnected ? (
+              <>
+                <Wifi className="w-3 h-3" />
+                Live
+              </>
+            ) : (
+              <>
+                <WifiOff className="w-3 h-3" />
+                Offline
+              </>
+            )}
+          </Badge>
+        </div>
         <Button variant="outline" size="sm" onClick={() => refetch()}>
           <RefreshCw className="w-4 h-4 mr-2" />
           Refresh
@@ -329,21 +394,30 @@ export function AuditLogViewer() {
             </div>
           ) : (
             <div className="space-y-3">
+              <AnimatePresence>
               {filteredLogs?.map((log, index) => (
                 <motion.div
                   key={log.id}
                   initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
+                  animate={{ 
+                    opacity: 1, 
+                    y: 0,
+                    scale: newLogIds.has(log.id) ? [1, 1.02, 1] : 1,
+                  }}
                   transition={{ delay: index * 0.02 }}
+                  className={newLogIds.has(log.id) ? 'ring-2 ring-primary ring-offset-2 ring-offset-background rounded-lg' : ''}
                 >
                   <Collapsible
                     open={expandedLogs.has(log.id)}
                     onOpenChange={() => toggleLogExpanded(log.id)}
                   >
-                    <div className="border border-border rounded-lg overflow-hidden">
+                    <div className={`border rounded-lg overflow-hidden ${newLogIds.has(log.id) ? 'border-primary bg-primary/5' : 'border-border'}`}>
                       <CollapsibleTrigger className="w-full">
                         <div className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors">
                           <div className="flex items-center gap-4 flex-1 min-w-0">
+                            {newLogIds.has(log.id) && (
+                              <Badge variant="default" className="text-xs animate-pulse">NEW</Badge>
+                            )}
                             <div className="flex flex-col items-start gap-1">
                               {getActionBadge(log.action)}
                               <span className="text-xs text-muted-foreground">
@@ -409,6 +483,7 @@ export function AuditLogViewer() {
                   </Collapsible>
                 </motion.div>
               ))}
+              </AnimatePresence>
             </div>
           )}
         </CardContent>

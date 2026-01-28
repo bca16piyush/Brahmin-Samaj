@@ -102,6 +102,13 @@ export function useDeleteUser() {
 
   return useMutation({
     mutationFn: async (userId: string) => {
+      // Get the current session to ensure we have a valid token
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        throw new Error('Authentication required. Please log in again.');
+      }
+
       const { data, error } = await supabase.functions.invoke('admin-operations', {
         body: {
           action: 'delete_user',
@@ -109,8 +116,16 @@ export function useDeleteUser() {
         },
       });
 
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (error) {
+        console.error('Edge function error:', error);
+        throw new Error(error.message || 'Failed to delete user');
+      }
+      
+      if (data?.error) {
+        console.error('API error:', data.error);
+        throw new Error(data.error);
+      }
+      
       return data;
     },
     onSuccess: () => {
@@ -122,9 +137,10 @@ export function useDeleteUser() {
       });
     },
     onError: (error) => {
+      console.error('Delete user mutation error:', error);
       toast({
-        title: 'Error',
-        description: error.message,
+        title: 'Error Deleting User',
+        description: error.message || 'An unexpected error occurred',
         variant: 'destructive',
       });
     },
