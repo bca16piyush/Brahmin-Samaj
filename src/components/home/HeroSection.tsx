@@ -35,7 +35,7 @@ export function HeroSection() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.1 }}
-            className="font-heading text-4xl md:text-5xl lg:text-6xl font-bold text-primary-foreground leading-tight mb-6"
+            className="font-heading text-4xl md:text-5xl lg:text-6xl font-bold text-primary-foreground leading-normal mb-6"
           >
             महायज्ञ{' '}
             <span className="text-gradient-saffron">विश्व कल्याण हेतु</span>
