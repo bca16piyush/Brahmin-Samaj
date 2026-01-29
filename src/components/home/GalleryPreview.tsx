@@ -5,84 +5,90 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-
 export function GalleryPreview() {
-  const { user } = useAuth();
-
-  const { data: galleryImages, isLoading } = useQuery({
+  const {
+    user
+  } = useAuth();
+  const {
+    data: galleryImages,
+    isLoading
+  } = useQuery({
     queryKey: ['gallery-preview'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('gallery')
-        .select('*')
-        .eq('is_public', true)
-        .order('created_at', { ascending: false })
-        .limit(4);
-
+      const {
+        data,
+        error
+      } = await supabase.from('gallery').select('*').eq('is_public', true).order('created_at', {
+        ascending: false
+      }).limit(4);
       if (error) throw error;
       return data;
     },
-    enabled: !!user, // Only fetch if user is logged in
+    enabled: !!user // Only fetch if user is logged in
   });
-
-  return (
-    <section className="py-20 lg:py-28 bg-cream">
+  return <section className="py-20 lg:py-28 bg-cream">
       <div className="container mx-auto px-4">
         <div className="flex flex-col md:flex-row md:items-end md:justify-between mb-12">
           <div>
-            <motion.span
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="inline-block px-4 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4"
-            >
+            <motion.span initial={{
+            opacity: 0,
+            y: 20
+          }} whileInView={{
+            opacity: 1,
+            y: 0
+          }} viewport={{
+            once: true
+          }} className="inline-block px-4 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4">
               यादें
             </motion.span>
-            <motion.h2
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.1 }}
-              className="font-heading text-3xl md:text-4xl font-bold text-foreground"
-            >
-              यज्ञ <span className="text-gradient-saffron">गैलरी</span>
+            <motion.h2 initial={{
+            opacity: 0,
+            y: 20
+          }} whileInView={{
+            opacity: 1,
+            y: 0
+          }} viewport={{
+            once: true
+          }} transition={{
+            delay: 0.1
+          }} className="font-heading text-3xl md:text-4xl font-bold text-foreground">
+              यज्ञ <span className="text-gradient-saffron font-serif">गैलरी</span>
             </motion.h2>
           </div>
-          {user && (
-            <Link to="/gallery">
-              <motion.span
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.2 }}
-                className="text-primary hover:text-primary/80 font-medium mt-4 md:mt-0 inline-flex items-center gap-1"
-              >
+          {user && <Link to="/gallery">
+              <motion.span initial={{
+            opacity: 0,
+            y: 20
+          }} whileInView={{
+            opacity: 1,
+            y: 0
+          }} viewport={{
+            once: true
+          }} transition={{
+            delay: 0.2
+          }} className="text-primary hover:text-primary/80 font-medium mt-4 md:mt-0 inline-flex items-center gap-1">
                 पूरी गैलरी देखें <ArrowRight className="w-4 h-4" />
               </motion.span>
-            </Link>
-          )}
+            </Link>}
         </div>
 
         {/* Locked State for non-authenticated users */}
-        {!user ? (
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="relative"
-          >
+        {!user ? <motion.div initial={{
+        opacity: 0,
+        y: 30
+      }} whileInView={{
+        opacity: 1,
+        y: 0
+      }} viewport={{
+        once: true
+      }} className="relative">
             {/* Decorative background pattern */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-              {[1, 2, 3, 4].map((_, index) => (
-                <div
-                  key={index}
-                  className="aspect-[4/3] rounded-xl bg-gradient-to-br from-muted/50 to-muted overflow-hidden"
-                >
+              {[1, 2, 3, 4].map((_, index) => <div key={index} className="aspect-[4/3] rounded-xl bg-gradient-to-br from-muted/50 to-muted overflow-hidden">
                   <div className="w-full h-full flex items-center justify-center">
                     <Camera className="w-8 h-8 text-muted-foreground/30" />
                   </div>
-                </div>
-              ))}
+                </div>)}
             </div>
 
             {/* Overlay with login prompt */}
@@ -105,33 +111,23 @@ export function GalleryPreview() {
                 </Link>
               </div>
             </div>
-          </motion.div>
-        ) : isLoading ? (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="aspect-[4/3] rounded-xl bg-muted animate-pulse" />
-            ))}
-          </div>
-        ) : !galleryImages || galleryImages.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground">
+          </motion.div> : isLoading ? <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+            {[1, 2, 3, 4].map(i => <div key={i} className="aspect-[4/3] rounded-xl bg-muted animate-pulse" />)}
+          </div> : !galleryImages || galleryImages.length === 0 ? <div className="text-center py-12 text-muted-foreground">
             अभी गैलरी में कोई तस्वीर नहीं है।
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-            {galleryImages.map((image, index) => (
-              <motion.div
-                key={image.id}
-                initial={{ opacity: 0, scale: 0.9 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-                className="group relative aspect-[4/3] rounded-xl overflow-hidden cursor-pointer"
-              >
-                <img
-                  src={image.image_url}
-                  alt={image.title}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                />
+          </div> : <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+            {galleryImages.map((image, index) => <motion.div key={image.id} initial={{
+          opacity: 0,
+          scale: 0.9
+        }} whileInView={{
+          opacity: 1,
+          scale: 1
+        }} viewport={{
+          once: true
+        }} transition={{
+          delay: index * 0.1
+        }} className="group relative aspect-[4/3] rounded-xl overflow-hidden cursor-pointer">
+                <img src={image.image_url} alt={image.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
                 <div className="absolute inset-0 bg-gradient-to-t from-maroon/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 <div className="absolute bottom-0 left-0 right-0 p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
                   <p className="text-xs text-gold mb-1">{image.event_name || image.category}</p>
@@ -140,11 +136,8 @@ export function GalleryPreview() {
                 <button className="absolute top-3 right-3 bg-background/90 rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background">
                   <Download className="w-4 h-4 text-foreground" />
                 </button>
-              </motion.div>
-            ))}
-          </div>
-        )}
+              </motion.div>)}
+          </div>}
       </div>
-    </section>
-  );
+    </section>;
 }

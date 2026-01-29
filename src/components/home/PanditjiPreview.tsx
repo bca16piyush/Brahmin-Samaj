@@ -6,80 +6,88 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-
 export function PanditjiPreview() {
-  const { user, isVerified } = useAuth();
+  const {
+    user,
+    isVerified
+  } = useAuth();
 
   // Fetch active pandits from database - only if logged in
-  const { data: pandits, isLoading } = useQuery({
+  const {
+    data: pandits,
+    isLoading
+  } = useQuery({
     queryKey: ['active-pandits-preview'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('pandits')
-        .select('*')
-        .eq('is_active', true)
-        .limit(3);
+      const {
+        data,
+        error
+      } = await supabase.from('pandits').select('*').eq('is_active', true).limit(3);
       if (error) throw error;
       return data;
     },
-    enabled: !!user, // Only fetch if user is logged in
+    enabled: !!user // Only fetch if user is logged in
   });
-
   const isLoggedIn = !!user;
-
-  return (
-    <section className="py-20 lg:py-28 bg-background">
+  return <section className="py-20 lg:py-28 bg-background">
       <div className="container mx-auto px-4">
         <div className="flex flex-col md:flex-row md:items-end md:justify-between mb-12">
           <div>
-            <motion.span
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="inline-block px-4 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4"
-            >
+            <motion.span initial={{
+            opacity: 0,
+            y: 20
+          }} whileInView={{
+            opacity: 1,
+            y: 0
+          }} viewport={{
+            once: true
+          }} className="inline-block px-4 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4">
               पुरोहित खोजें
             </motion.span>
-            <motion.h2
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.1 }}
-              className="font-heading text-3xl md:text-4xl font-bold text-foreground"
-            >
-              हमारे आदरणीय <span className="text-gradient-saffron">पंडितजी</span>
+            <motion.h2 initial={{
+            opacity: 0,
+            y: 20
+          }} whileInView={{
+            opacity: 1,
+            y: 0
+          }} viewport={{
+            once: true
+          }} transition={{
+            delay: 0.1
+          }} className="font-heading text-3xl md:text-4xl font-bold text-foreground">
+              हमारे आदरणीय <span className="text-gradient-saffron font-serif">पंडितजी</span>
             </motion.h2>
           </div>
-          {isLoggedIn && (
-            <Link to="/panditji">
-              <motion.span
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.2 }}
-                className="text-primary hover:text-primary/80 font-medium mt-4 md:mt-0 inline-flex items-center gap-1"
-              >
+          {isLoggedIn && <Link to="/panditji">
+              <motion.span initial={{
+            opacity: 0,
+            y: 20
+          }} whileInView={{
+            opacity: 1,
+            y: 0
+          }} viewport={{
+            once: true
+          }} transition={{
+            delay: 0.2
+          }} className="text-primary hover:text-primary/80 font-medium mt-4 md:mt-0 inline-flex items-center gap-1">
                 सभी पंडितजी देखें <ArrowRight className="w-4 h-4" />
               </motion.span>
-            </Link>
-          )}
+            </Link>}
         </div>
 
         {/* Locked State for non-authenticated users */}
-        {!isLoggedIn ? (
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="relative"
-          >
+        {!isLoggedIn ? <motion.div initial={{
+        opacity: 0,
+        y: 30
+      }} whileInView={{
+        opacity: 1,
+        y: 0
+      }} viewport={{
+        once: true
+      }} className="relative">
             {/* Decorative placeholder cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[1, 2, 3].map((_, index) => (
-                <div
-                  key={index}
-                  className="p-6 rounded-2xl bg-muted/30 border border-border"
-                >
+              {[1, 2, 3].map((_, index) => <div key={index} className="p-6 rounded-2xl bg-muted/30 border border-border">
                   <div className="flex items-start gap-4 mb-4">
                     <div className="w-20 h-20 rounded-xl bg-muted flex items-center justify-center">
                       <User className="w-8 h-8 text-muted-foreground/40" />
@@ -102,8 +110,7 @@ export function PanditjiPreview() {
                     <div className="h-9 bg-muted rounded flex-1" />
                     <div className="h-9 bg-muted rounded flex-1" />
                   </div>
-                </div>
-              ))}
+                </div>)}
             </div>
 
             {/* Overlay with login prompt */}
@@ -126,42 +133,32 @@ export function PanditjiPreview() {
                 </Link>
               </div>
             </div>
-          </motion.div>
-        ) : isLoading ? (
-          <div className="flex items-center justify-center py-12">
+          </motion.div> : isLoading ? <div className="flex items-center justify-center py-12">
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          </div>
-        ) : !pandits || pandits.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground">
+          </div> : !pandits || pandits.length === 0 ? <div className="text-center py-12 text-muted-foreground">
             अभी कोई पंडितजी उपलब्ध नहीं हैं।
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {pandits.map((pandit, index) => (
-              <motion.div
-                key={pandit.id}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-                className="group relative p-6 rounded-2xl bg-card border border-border hover:border-primary/30 hover:shadow-temple transition-all duration-300"
-              >
+          </div> : <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {pandits.map((pandit, index) => <motion.div key={pandit.id} initial={{
+          opacity: 0,
+          y: 30
+        }} whileInView={{
+          opacity: 1,
+          y: 0
+        }} viewport={{
+          once: true
+        }} transition={{
+          delay: index * 0.1
+        }} className="group relative p-6 rounded-2xl bg-card border border-border hover:border-primary/30 hover:shadow-temple transition-all duration-300">
                 <div className="flex items-start gap-4 mb-4">
-                  <img
-                    src={pandit.photo_url || 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=200&h=200&fit=crop'}
-                    alt={pandit.name}
-                    className="w-20 h-20 rounded-xl object-cover border-2 border-gold/30"
-                  />
+                  <img src={pandit.photo_url || 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=200&h=200&fit=crop'} alt={pandit.name} className="w-20 h-20 rounded-xl object-cover border-2 border-gold/30" />
                   <div className="flex-1">
                     <h3 className="font-heading text-lg font-semibold text-foreground mb-1">
                       {pandit.name}
                     </h3>
-                    {pandit.location && (
-                      <div className="flex items-center gap-1 text-sm text-muted-foreground mb-2">
+                    {pandit.location && <div className="flex items-center gap-1 text-sm text-muted-foreground mb-2">
                         <MapPin className="w-3.5 h-3.5" />
                         {pandit.location}
-                      </div>
-                    )}
+                      </div>}
                     <div className="flex items-center gap-1">
                       <Star className="w-4 h-4 fill-gold text-gold" />
                       <span className="text-sm font-medium">4.8</span>
@@ -170,16 +167,13 @@ export function PanditjiPreview() {
                 </div>
 
                 <div className="flex flex-wrap gap-2 mb-4">
-                  {pandit.expertise?.slice(0, 3).map((skill) => (
-                    <Badge key={skill} variant="secondary" className="text-xs">
+                  {pandit.expertise?.slice(0, 3).map(skill => <Badge key={skill} variant="secondary" className="text-xs">
                       {skill}
-                    </Badge>
-                  ))}
+                    </Badge>)}
                 </div>
 
                 {/* Contact Section - Locked for non-verified */}
-                {isVerified ? (
-                  <div className="flex gap-2">
+                {isVerified ? <div className="flex gap-2">
                     <Button variant="hero" size="sm" className="flex-1" asChild>
                       <a href={`tel:${pandit.phone}`}>
                         <Phone className="w-4 h-4 mr-1" />
@@ -192,9 +186,7 @@ export function PanditjiPreview() {
                         WhatsApp
                       </a>
                     </Button>
-                  </div>
-                ) : (
-                  <div className="relative">
+                  </div> : <div className="relative">
                     <div className="blur-lock pointer-events-none">
                       <div className="flex gap-2">
                         <Button variant="default" size="sm" className="flex-1">
@@ -215,13 +207,9 @@ export function PanditjiPreview() {
                         </Button>
                       </Link>
                     </div>
-                  </div>
-                )}
-              </motion.div>
-            ))}
-          </div>
-        )}
+                  </div>}
+              </motion.div>)}
+          </div>}
       </div>
-    </section>
-  );
+    </section>;
 }
