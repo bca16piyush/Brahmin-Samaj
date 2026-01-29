@@ -42,7 +42,7 @@ export function AboutSection() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: 0.1 }}
-            className="font-heading text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-6"
+            className="font-heading text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-6 leading-normal"
           >
             परोपकारार्थमिदं{' '}
             <span className="text-gradient-saffron">शरीरम्</span>
@@ -72,7 +72,7 @@ export function AboutSection() {
               <div className="w-14 h-14 rounded-xl bg-gradient-saffron flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
                 <feature.icon className="w-7 h-7 text-primary-foreground" />
               </div>
-              <h3 className="font-heading text-xl font-semibold text-foreground mb-3">
+              <h3 className="font-heading text-xl font-semibold text-foreground mb-3 leading-normal">
                 {feature.title}
               </h3>
               <p className="text-muted-foreground leading-relaxed">
