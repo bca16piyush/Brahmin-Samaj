@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, User, Mail, Lock, KeyRound, ArrowLeft, Eye, EyeOff } from 'lucide-react';
@@ -6,11 +6,30 @@ import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 
 type ViewMode = 'login' | 'forgot-password' | 'update-password';
+
+// Password strength calculator
+const calculatePasswordStrength = (password: string): { score: number; label: string; color: string } => {
+  let score = 0;
+  
+  if (password.length >= 6) score += 20;
+  if (password.length >= 8) score += 20;
+  if (password.length >= 12) score += 10;
+  if (/[a-z]/.test(password)) score += 10;
+  if (/[A-Z]/.test(password)) score += 15;
+  if (/[0-9]/.test(password)) score += 15;
+  if (/[^a-zA-Z0-9]/.test(password)) score += 10;
+  
+  if (score <= 30) return { score, label: 'Weak', color: 'bg-destructive' };
+  if (score <= 50) return { score, label: 'Fair', color: 'bg-orange-500' };
+  if (score <= 70) return { score, label: 'Good', color: 'bg-yellow-500' };
+  return { score: Math.min(score, 100), label: 'Strong', color: 'bg-green-500' };
+};
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -19,6 +38,7 @@ export default function Login() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -26,6 +46,9 @@ export default function Login() {
   const { toast } = useToast();
   const { signIn } = useAuth();
   const navigate = useNavigate();
+
+  // Password strength memo
+  const passwordStrength = useMemo(() => calculatePasswordStrength(newPassword), [newPassword]);
 
   // Check for password reset token in URL
   useEffect(() => {
@@ -51,6 +74,13 @@ export default function Login() {
         variant: 'destructive',
       });
     } else {
+      // Store remember me preference
+      if (rememberMe) {
+        localStorage.setItem('rememberMe', 'true');
+      } else {
+        localStorage.removeItem('rememberMe');
+      }
+      
       toast({
         title: 'Welcome Back!',
         description: 'You have successfully logged in.',
@@ -193,6 +223,49 @@ export default function Login() {
                             {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                           </button>
                         </div>
+                        
+                        {/* Password Strength Indicator */}
+                        {newPassword && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            className="space-y-1 pt-2"
+                          >
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-muted-foreground">Password Strength</span>
+                              <span className={`font-medium ${
+                                passwordStrength.label === 'Weak' ? 'text-destructive' :
+                                passwordStrength.label === 'Fair' ? 'text-orange-500' :
+                                passwordStrength.label === 'Good' ? 'text-yellow-600' :
+                                'text-green-600'
+                              }`}>
+                                {passwordStrength.label}
+                              </span>
+                            </div>
+                            <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
+                              <motion.div
+                                initial={{ width: 0 }}
+                                animate={{ width: `${passwordStrength.score}%` }}
+                                transition={{ duration: 0.3 }}
+                                className={`h-full ${passwordStrength.color} rounded-full`}
+                              />
+                            </div>
+                            <ul className="text-xs text-muted-foreground space-y-0.5 pt-1">
+                              <li className={newPassword.length >= 8 ? 'text-green-600' : ''}>
+                                • At least 8 characters
+                              </li>
+                              <li className={/[A-Z]/.test(newPassword) ? 'text-green-600' : ''}>
+                                • One uppercase letter
+                              </li>
+                              <li className={/[0-9]/.test(newPassword) ? 'text-green-600' : ''}>
+                                • One number
+                              </li>
+                              <li className={/[^a-zA-Z0-9]/.test(newPassword) ? 'text-green-600' : ''}>
+                                • One special character
+                              </li>
+                            </ul>
+                          </motion.div>
+                        )}
                       </div>
 
                       <div className="space-y-2">
@@ -210,6 +283,9 @@ export default function Login() {
                             minLength={6}
                           />
                         </div>
+                        {confirmPassword && newPassword !== confirmPassword && (
+                          <p className="text-xs text-destructive">Passwords do not match</p>
+                        )}
                       </div>
 
                       <Button
@@ -345,7 +421,17 @@ export default function Login() {
                         </div>
                       </div>
 
-                      <div className="text-right">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id="remember-me"
+                            checked={rememberMe}
+                            onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+                          />
+                          <Label htmlFor="remember-me" className="text-sm font-normal cursor-pointer">
+                            Remember me
+                          </Label>
+                        </div>
                         <button
                           type="button"
                           onClick={() => setViewMode('forgot-password')}
