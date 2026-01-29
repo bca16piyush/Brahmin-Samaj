@@ -11,3 +11,9 @@ verify_jwt = true
 
 [functions.admin-operations]
 verify_jwt = false
+
+[functions.temple-chatbot]
+verify_jwt = false
+
+[functions.send-security-alert]
+verify_jwt = true
