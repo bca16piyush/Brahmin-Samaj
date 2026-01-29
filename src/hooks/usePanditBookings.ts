@@ -274,7 +274,7 @@ export function useCreateBooking() {
       // Validate input - throws on validation failure
       const validated = validateOrThrow(bookingSchema, booking);
       
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('pandit_bookings')
         .insert({
           pandit_id: validated.pandit_id,
@@ -284,9 +284,26 @@ export function useCreateBooking() {
           location: validated.location || null,
           message: validated.message || null,
           user_id: user.id,
-        });
+        })
+        .select()
+        .single();
       
       if (error) throw error;
+      
+      // Send notification for new booking (non-blocking)
+      try {
+        await supabase.functions.invoke('send-booking-notification', {
+          body: {
+            type: 'new_booking',
+            bookingId: data.id,
+          },
+        });
+      } catch (notifyError) {
+        console.error('Failed to send booking notification:', notifyError);
+        // Don't throw - booking was successful
+      }
+      
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['user-bookings'] });
@@ -317,13 +334,48 @@ export function useUpdateBookingStatus() {
         .eq('id', id);
       
       if (error) throw error;
+      
+      // Send notification based on status change (non-blocking)
+      try {
+        let notificationType: string | null = null;
+        
+        if (status === 'confirmed') {
+          notificationType = 'booking_confirmed';
+        } else if (status === 'cancelled') {
+          notificationType = 'booking_cancelled';
+        } else if (status === 'completed') {
+          notificationType = 'booking_completed';
+        }
+        
+        if (notificationType) {
+          await supabase.functions.invoke('send-booking-notification', {
+            body: {
+              type: notificationType,
+              bookingId: id,
+            },
+          });
+        }
+      } catch (notifyError) {
+        console.error('Failed to send status notification:', notifyError);
+        // Don't throw - status update was successful
+      }
+      
+      return { id, status };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['admin-bookings'] });
       queryClient.invalidateQueries({ queryKey: ['user-bookings'] });
+      
+      const statusMessages: Record<string, string> = {
+        confirmed: 'Booking confirmed. User has been notified.',
+        cancelled: 'Booking cancelled. User has been notified.',
+        completed: 'Booking marked complete. User has been notified.',
+        pending: 'Booking status updated.',
+      };
+      
       toast({
         title: 'Status Updated',
-        description: 'The booking status has been updated.',
+        description: statusMessages[data.status] || 'The booking status has been updated.',
       });
     },
     onError: (error) => {
