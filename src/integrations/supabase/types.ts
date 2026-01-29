@@ -392,6 +392,13 @@ export type Database = {
             referencedRelation: "pandits"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "pandit_bookings_pandit_id_fkey"
+            columns: ["pandit_id"]
+            isOneToOne: false
+            referencedRelation: "pandits_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       pandit_expertise_options: {
@@ -449,6 +456,13 @@ export type Database = {
             columns: ["pandit_id"]
             isOneToOne: false
             referencedRelation: "pandits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pandit_reviews_pandit_id_fkey"
+            columns: ["pandit_id"]
+            isOneToOne: false
+            referencedRelation: "pandits_public"
             referencedColumns: ["id"]
           },
         ]
@@ -605,7 +619,57 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      pandits_public: {
+        Row: {
+          availability: string | null
+          bio: string | null
+          created_at: string | null
+          experience_start_date: string | null
+          expertise: string[] | null
+          id: string | null
+          is_active: boolean | null
+          location: string | null
+          name: string | null
+          phone: string | null
+          photo_url: string | null
+          updated_at: string | null
+          weekly_availability: Json | null
+          whatsapp: string | null
+        }
+        Insert: {
+          availability?: string | null
+          bio?: string | null
+          created_at?: string | null
+          experience_start_date?: string | null
+          expertise?: string[] | null
+          id?: string | null
+          is_active?: boolean | null
+          location?: string | null
+          name?: string | null
+          phone?: never
+          photo_url?: string | null
+          updated_at?: string | null
+          weekly_availability?: Json | null
+          whatsapp?: never
+        }
+        Update: {
+          availability?: string | null
+          bio?: string | null
+          created_at?: string | null
+          experience_start_date?: string | null
+          expertise?: string[] | null
+          id?: string | null
+          is_active?: boolean | null
+          location?: string | null
+          name?: string | null
+          phone?: never
+          photo_url?: string | null
+          updated_at?: string | null
+          weekly_availability?: Json | null
+          whatsapp?: never
+        }
+        Relationships: []
+      }
     }
     Functions: {
       check_rate_limit: {
@@ -615,6 +679,10 @@ export type Database = {
           _user_id: string
           _window_minutes?: number
         }
+        Returns: boolean
+      }
+      has_confirmed_booking: {
+        Args: { _pandit_id: string; _user_id: string }
         Returns: boolean
       }
       has_role: {
