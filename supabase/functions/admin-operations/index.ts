@@ -124,6 +124,28 @@ serve(async (req) => {
 
     if (!roleData) {
       await logAuditEvent(supabase, user.id, 'unauthorized_access_attempt', 'admin_operations', null, {}, req);
+      
+      // Send security alert email
+      try {
+        await fetch(`${supabaseUrl}/functions/v1/send-security-alert`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseServiceKey}`,
+          },
+          body: JSON.stringify({
+            eventType: 'unauthorized_access_attempt',
+            userId: user.id,
+            userEmail: user.email,
+            ipAddress: req.headers.get('x-forwarded-for') || req.headers.get('cf-connecting-ip') || 'unknown',
+            userAgent: req.headers.get('user-agent') || 'unknown',
+            details: { attempted_action: 'admin_operations' },
+          }),
+        });
+      } catch (alertError) {
+        console.error('Failed to send security alert:', alertError);
+      }
+      
       return new Response(
         JSON.stringify({ error: 'Admin access required' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -134,6 +156,28 @@ serve(async (req) => {
     const withinLimit = await checkRateLimit(supabase, user.id, 'admin_operations', 30);
     if (!withinLimit) {
       await logAuditEvent(supabase, user.id, 'rate_limit_exceeded', 'admin_operations', null, {}, req);
+      
+      // Send security alert email for rate limit
+      try {
+        await fetch(`${supabaseUrl}/functions/v1/send-security-alert`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseServiceKey}`,
+          },
+          body: JSON.stringify({
+            eventType: 'rate_limit_exceeded',
+            userId: user.id,
+            userEmail: user.email,
+            ipAddress: req.headers.get('x-forwarded-for') || req.headers.get('cf-connecting-ip') || 'unknown',
+            userAgent: req.headers.get('user-agent') || 'unknown',
+            details: { action: 'admin_operations', limit: 30 },
+          }),
+        });
+      } catch (alertError) {
+        console.error('Failed to send security alert:', alertError);
+      }
+      
       return new Response(
         JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
         { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

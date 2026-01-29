@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Filter, Calendar, User, Activity, Clock, ChevronDown, ChevronUp, RefreshCw, Wifi, WifiOff } from 'lucide-react';
+import { Search, Filter, Calendar, User, Activity, Clock, ChevronDown, ChevronUp, RefreshCw, Wifi, WifiOff, Download } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -210,6 +210,66 @@ export function AuditLogViewer() {
     );
   };
 
+  // CSV Export functionality
+  const exportToCSV = useCallback(() => {
+    if (!filteredLogs || filteredLogs.length === 0) {
+      toast({
+        title: 'No Data to Export',
+        description: 'There are no audit logs matching your current filters.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Define CSV headers
+    const headers = [
+      'Timestamp',
+      'Action',
+      'Resource Type',
+      'Resource ID',
+      'Admin Name',
+      'Admin Email',
+      'IP Address',
+      'User Agent',
+      'Details',
+    ];
+
+    // Convert logs to CSV rows
+    const rows = filteredLogs.map(log => [
+      format(new Date(log.created_at), 'yyyy-MM-dd HH:mm:ss'),
+      log.action,
+      log.resource_type,
+      log.resource_id || '',
+      log.admin_profile?.name || 'Unknown',
+      log.admin_profile?.email || '',
+      log.ip_address || '',
+      log.user_agent || '',
+      JSON.stringify(log.details).replace(/"/g, '""'), // Escape quotes for CSV
+    ]);
+
+    // Build CSV content
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(',')),
+    ].join('\n');
+
+    // Create and download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `audit-logs-${format(new Date(), 'yyyy-MM-dd-HHmmss')}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast({
+      title: 'Export Successful',
+      description: `Exported ${filteredLogs.length} audit log entries to CSV.`,
+    });
+  }, [filteredLogs, toast]);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -229,10 +289,16 @@ export function AuditLogViewer() {
             )}
           </Badge>
         </div>
-        <Button variant="outline" size="sm" onClick={() => refetch()}>
-          <RefreshCw className="w-4 h-4 mr-2" />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={exportToCSV}>
+            <Download className="w-4 h-4 mr-2" />
+            Export CSV
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => refetch()}>
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
