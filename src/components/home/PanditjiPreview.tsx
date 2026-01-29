@@ -13,6 +13,7 @@ export function PanditjiPreview() {
   } = useAuth();
 
   // Fetch active pandits from database - only if logged in
+  // Uses pandits_public view for secure access - masks phone/whatsapp unless user has confirmed booking
   const {
     data: pandits,
     isLoading
@@ -22,7 +23,7 @@ export function PanditjiPreview() {
       const {
         data,
         error
-      } = await supabase.from('pandits').select('*').eq('is_active', true).limit(3);
+      } = await supabase.from('pandits_public').select('*').eq('is_active', true).limit(3);
       if (error) throw error;
       return data;
     },

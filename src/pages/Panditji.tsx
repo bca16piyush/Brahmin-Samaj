@@ -28,8 +28,9 @@ function useActivePandits() {
   return useQuery({
     queryKey: ['active-pandits'],
     queryFn: async () => {
+      // Use pandits_public view for secure access - masks phone/whatsapp unless user has confirmed booking
       const { data, error } = await supabase
-        .from('pandits')
+        .from('pandits_public')
         .select('*')
         .eq('is_active', true)
         .order('name', { ascending: true });
