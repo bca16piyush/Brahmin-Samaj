@@ -1,85 +1,85 @@
 import { motion } from 'framer-motion';
 import { Heart, Book, Users, Award, Target, Globe, Flame, Shield } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
-
-const values = [
-  {
-    icon: Flame,
-    title: 'यज्ञ परंपरा',
-    description: 'Preserving and conducting sacred Vedic yagyas as per shastriya maryada for world welfare.',
-  },
-  {
-    icon: Shield,
-    title: 'राष्ट्र हित',
-    description: 'Every yagya is performed with the sacred resolve for national prosperity and protection.',
-  },
-  {
-    icon: Book,
-    title: 'वैदिक ज्ञान',
-    description: 'Promoting Vedic education and preserving ancient knowledge for future generations.',
-  },
-  {
-    icon: Heart,
-    title: 'परोपकार',
-    description: 'Selfless service through hospitals, schools, gaushalas, and humanitarian missions.',
-  },
-];
-
-const stats = [
-  { value: '9+', label: 'Lakh Chandi Mahayagyas' },
-  { value: '7+', label: 'Ayut Chandi Mahayagyas' },
-  { value: '1000+', label: 'Sahasra Chandi Yagyas' },
-  { value: '35+', label: 'Years of Service' },
-];
-
-const achievements = [
-  'Conducted Mahayagya during 1986 Haridwar Mahakumbh for world welfare',
-  'Organized yagyas for Ganga restoration at Kanpur ghats (1996)',
-  'Performed special yagyas for disaster relief after Kedarnath tragedy (2013)',
-  'Conducted Lakh Chandi Mahayagya in Varanasi (2015) for corruption-free India',
-  'Organized Koti Shri Mahayagya in Kanpur (2017) for industrial development',
-  'Performed yagya for COVID-19 eradication in Kashi (2022)',
-  'Established Sushil Koirala Prakhar Cancer Hospital in Nepal',
-];
-
+const values = [{
+  icon: Flame,
+  title: 'यज्ञ परंपरा',
+  description: 'Preserving and conducting sacred Vedic yagyas as per shastriya maryada for world welfare.'
+}, {
+  icon: Shield,
+  title: 'राष्ट्र हित',
+  description: 'Every yagya is performed with the sacred resolve for national prosperity and protection.'
+}, {
+  icon: Book,
+  title: 'वैदिक ज्ञान',
+  description: 'Promoting Vedic education and preserving ancient knowledge for future generations.'
+}, {
+  icon: Heart,
+  title: 'परोपकार',
+  description: 'Selfless service through hospitals, schools, gaushalas, and humanitarian missions.'
+}];
+const stats = [{
+  value: '9+',
+  label: 'Lakh Chandi Mahayagyas'
+}, {
+  value: '7+',
+  label: 'Ayut Chandi Mahayagyas'
+}, {
+  value: '1000+',
+  label: 'Sahasra Chandi Yagyas'
+}, {
+  value: '35+',
+  label: 'Years of Service'
+}];
+const achievements = ['Conducted Mahayagya during 1986 Haridwar Mahakumbh for world welfare', 'Organized yagyas for Ganga restoration at Kanpur ghats (1996)', 'Performed special yagyas for disaster relief after Kedarnath tragedy (2013)', 'Conducted Lakh Chandi Mahayagya in Varanasi (2015) for corruption-free India', 'Organized Koti Shri Mahayagya in Kanpur (2017) for industrial development', 'Performed yagya for COVID-19 eradication in Kashi (2022)', 'Established Sushil Koirala Prakhar Cancer Hospital in Nepal'];
 export default function About() {
-  return (
-    <Layout>
+  return <Layout>
       {/* Hero */}
       <section className="py-20 lg:py-28 bg-gradient-to-b from-cream to-background">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto text-center">
-            <motion.span
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="inline-block px-4 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6"
-            >
+            <motion.span initial={{
+            opacity: 0,
+            y: 20
+          }} animate={{
+            opacity: 1,
+            y: 0
+          }} className="inline-block px-4 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
               परम पूज्य गुरुदेव
             </motion.span>
-            <motion.h1
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="font-heading text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-6"
-            >
-              महामंडलेश्वर स्वामी श्री <span className="text-gradient-saffron">प्रखर जी महाराज</span>
+            <motion.h1 initial={{
+            opacity: 0,
+            y: 20
+          }} animate={{
+            opacity: 1,
+            y: 0
+          }} transition={{
+            delay: 0.1
+          }} className="font-heading text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-6">
+              महामंडलेश्वर स्वामी श्री <span className="text-gradient-saffron font-serif">प्रखर जी महाराज</span>
             </motion.h1>
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="text-lg text-muted-foreground leading-relaxed mb-4"
-            >
+            <motion.p initial={{
+            opacity: 0,
+            y: 20
+          }} animate={{
+            opacity: 1,
+            y: 0
+          }} transition={{
+            delay: 0.2
+          }} className="text-lg text-muted-foreground leading-relaxed mb-4">
               परम पूज्य अनंत श्री विभूषित महामंडलेश्वर स्वामी श्री प्रखर जी महाराज, 
               धर्मसम्राट स्वामी श्री करपात्री जी महाराज के कृपा पात्र एवं 
               जगद्शंकराचार्य स्वामी श्री निरंजनदेव तीर्थ जी महाराज के शिष्य हैं।
             </motion.p>
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="text-base text-muted-foreground leading-relaxed"
-            >
+            <motion.p initial={{
+            opacity: 0,
+            y: 20
+          }} animate={{
+            opacity: 1,
+            y: 0
+          }} transition={{
+            delay: 0.3
+          }} className="text-base text-muted-foreground leading-relaxed">
               पूज्य गुरुदेव काशी के निवासी हैं और बाल्यावस्था से ही नैसर्गिक वैराग्य की स्थिति उत्पन्न हो गई थी। 
               उनका जीवन "परोपकारार्थमिदं शरीरम्" का एक उत्कृष्ट उदाहरण है।
             </motion.p>
@@ -91,11 +91,15 @@ export default function About() {
       <section className="py-20 bg-background">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            <motion.div
-              initial={{ opacity: 0, x: -30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-            >
+            <motion.div initial={{
+            opacity: 0,
+            x: -30
+          }} whileInView={{
+            opacity: 1,
+            x: 0
+          }} viewport={{
+            once: true
+          }}>
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-12 h-12 rounded-xl bg-gradient-saffron flex items-center justify-center">
                   <Target className="w-6 h-6 text-primary-foreground" />
@@ -108,25 +112,22 @@ export default function About() {
                 महायज्ञों का आयोजन करना।
               </p>
               <ul className="space-y-3">
-                {[
-                  'भ्रष्टाचार मुक्त आदर्श भारत राष्ट्र का निर्माण',
-                  'देश को आर्थिक और आणविक दृष्टि से सुदृढ़ बनाना',
-                  'भारत राष्ट्र को पुनः विश्व गुरु के रूप में स्थापित करना',
-                  'वैदिक हिंदू सनातन धर्म संस्कृति का संरक्षण',
-                ].map((item) => (
-                  <li key={item} className="flex items-center gap-3">
+                {['भ्रष्टाचार मुक्त आदर्श भारत राष्ट्र का निर्माण', 'देश को आर्थिक और आणविक दृष्टि से सुदृढ़ बनाना', 'भारत राष्ट्र को पुनः विश्व गुरु के रूप में स्थापित करना', 'वैदिक हिंदू सनातन धर्म संस्कृति का संरक्षण'].map(item => <li key={item} className="flex items-center gap-3">
                     <div className="w-2 h-2 rounded-full bg-primary" />
                     <span className="text-foreground">{item}</span>
-                  </li>
-                ))}
+                  </li>)}
               </ul>
             </motion.div>
 
-            <motion.div
-              initial={{ opacity: 0, x: 30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-            >
+            <motion.div initial={{
+            opacity: 0,
+            x: 30
+          }} whileInView={{
+            opacity: 1,
+            x: 0
+          }} viewport={{
+            once: true
+          }}>
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-12 h-12 rounded-xl bg-gold/20 flex items-center justify-center">
                   <Globe className="w-6 h-6 text-gold" />
@@ -155,42 +156,50 @@ export default function About() {
       <section className="py-20 bg-cream">
         <div className="container mx-auto px-4">
           <div className="text-center max-w-3xl mx-auto mb-12">
-            <motion.h2
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="font-heading text-3xl md:text-4xl font-bold text-foreground mb-4"
-            >
-              महायज्ञों की <span className="text-gradient-saffron">गौरवशाली परंपरा</span>
+            <motion.h2 initial={{
+            opacity: 0,
+            y: 20
+          }} whileInView={{
+            opacity: 1,
+            y: 0
+          }} viewport={{
+            once: true
+          }} className="font-heading text-3xl md:text-4xl font-bold text-foreground mb-4">
+              महायज्ञों की <span className="text-gradient-saffron font-serif">गौरवशाली परंपरा</span>
             </motion.h2>
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.1 }}
-              className="text-lg text-muted-foreground"
-            >
+            <motion.p initial={{
+            opacity: 0,
+            y: 20
+          }} whileInView={{
+            opacity: 1,
+            y: 0
+          }} viewport={{
+            once: true
+          }} transition={{
+            delay: 0.1
+          }} className="text-lg text-muted-foreground">
               विश्व कल्याण एवं राष्ट्र हित में आयोजित प्रमुख महायज्ञ
             </motion.p>
           </div>
 
           <div className="max-w-4xl mx-auto">
             <div className="space-y-4">
-              {achievements.map((achievement, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, x: -20 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: index * 0.1 }}
-                  className="flex items-start gap-4 p-4 rounded-xl bg-card border border-border"
-                >
+              {achievements.map((achievement, index) => <motion.div key={index} initial={{
+              opacity: 0,
+              x: -20
+            }} whileInView={{
+              opacity: 1,
+              x: 0
+            }} viewport={{
+              once: true
+            }} transition={{
+              delay: index * 0.1
+            }} className="flex items-start gap-4 p-4 rounded-xl bg-card border border-border">
                   <div className="w-8 h-8 rounded-full bg-gradient-saffron flex items-center justify-center flex-shrink-0 mt-0.5">
                     <Flame className="w-4 h-4 text-primary-foreground" />
                   </div>
                   <p className="text-foreground">{achievement}</p>
-                </motion.div>
-              ))}
+                </motion.div>)}
             </div>
           </div>
         </div>
@@ -200,42 +209,50 @@ export default function About() {
       <section className="py-20 bg-background">
         <div className="container mx-auto px-4">
           <div className="text-center max-w-3xl mx-auto mb-12">
-            <motion.h2
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="font-heading text-3xl md:text-4xl font-bold text-foreground mb-4"
-            >
+            <motion.h2 initial={{
+            opacity: 0,
+            y: 20
+          }} whileInView={{
+            opacity: 1,
+            y: 0
+          }} viewport={{
+            once: true
+          }} className="font-heading text-3xl md:text-4xl font-bold text-foreground mb-4">
               हमारे <span className="text-gradient-saffron">मूल्य</span>
             </motion.h2>
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.1 }}
-              className="text-lg text-muted-foreground"
-            >
+            <motion.p initial={{
+            opacity: 0,
+            y: 20
+          }} whileInView={{
+            opacity: 1,
+            y: 0
+          }} viewport={{
+            once: true
+          }} transition={{
+            delay: 0.1
+          }} className="text-lg text-muted-foreground">
               वे सिद्धांत जो हमारे प्रत्येक कार्य का मार्गदर्शन करते हैं
             </motion.p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {values.map((value, index) => (
-              <motion.div
-                key={value.title}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-                className="p-6 rounded-2xl bg-card border border-border hover:shadow-temple transition-all text-center"
-              >
+            {values.map((value, index) => <motion.div key={value.title} initial={{
+            opacity: 0,
+            y: 30
+          }} whileInView={{
+            opacity: 1,
+            y: 0
+          }} viewport={{
+            once: true
+          }} transition={{
+            delay: index * 0.1
+          }} className="p-6 rounded-2xl bg-card border border-border hover:shadow-temple transition-all text-center">
                 <div className="w-16 h-16 rounded-2xl bg-gradient-saffron flex items-center justify-center mx-auto mb-4">
                   <value.icon className="w-8 h-8 text-primary-foreground" />
                 </div>
                 <h3 className="font-heading text-xl font-semibold mb-2">{value.title}</h3>
                 <p className="text-muted-foreground text-sm">{value.description}</p>
-              </motion.div>
-            ))}
+              </motion.div>)}
           </div>
         </div>
       </section>
@@ -244,24 +261,24 @@ export default function About() {
       <section className="py-20 bg-maroon">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
-            {stats.map((stat, index) => (
-              <motion.div
-                key={stat.label}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-                className="text-center"
-              >
+            {stats.map((stat, index) => <motion.div key={stat.label} initial={{
+            opacity: 0,
+            y: 20
+          }} whileInView={{
+            opacity: 1,
+            y: 0
+          }} viewport={{
+            once: true
+          }} transition={{
+            delay: index * 0.1
+          }} className="text-center">
                 <p className="text-4xl md:text-5xl font-heading font-bold text-gold mb-2">
                   {stat.value}
                 </p>
                 <p className="text-primary-foreground/70">{stat.label}</p>
-              </motion.div>
-            ))}
+              </motion.div>)}
           </div>
         </div>
       </section>
-    </Layout>
-  );
+    </Layout>;
 }
