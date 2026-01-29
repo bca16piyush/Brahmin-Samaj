@@ -13,6 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { useDeleteUser } from '@/hooks/useAdmin';
+import { generateSecurePassword, sendPasswordResetAfterCreation } from '@/lib/securePassword';
 
 const SAMPLE_CSV_CONTENT = `name,email,mobile,gotra,father_name,native_village
 Rajesh Sharma,rajesh@example.com,9876543210,Bharadwaj,Ramesh Sharma,Jaipur
@@ -76,10 +77,13 @@ export function UserManager() {
   // Create user mutation
   const createUser = useMutation({
     mutationFn: async (userData: UserFormData) => {
+      // Generate cryptographically secure temporary password
+      const tempPassword = generateSecurePassword();
+      
       // First create auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: userData.email,
-        password: Math.random().toString(36).slice(-12) + 'A1!', // Generate random password
+        password: tempPassword,
         options: {
           data: {
             name: userData.name,
@@ -102,6 +106,9 @@ export function UserManager() {
         .eq('id', authData.user.id);
 
       if (profileError) throw profileError;
+
+      // Trigger password reset email so user can set their own password
+      await sendPasswordResetAfterCreation(supabase, userData.email);
 
       return authData.user;
     },
@@ -188,10 +195,13 @@ export function UserManager() {
             continue;
           }
 
+          // Generate cryptographically secure temporary password
+          const tempPassword = generateSecurePassword();
+          
           // Create auth user - they'll be marked as 'signup_pending' until they actually sign up
           const { data: authData, error: authError } = await supabase.auth.signUp({
             email: userData.email,
-            password: Math.random().toString(36).slice(-12) + 'A1!',
+            password: tempPassword,
             options: {
               data: {
                 name: userData.name,
@@ -200,6 +210,11 @@ export function UserManager() {
               },
             },
           });
+          
+          // Send password reset email for bulk uploaded users
+          if (authData?.user) {
+            await sendPasswordResetAfterCreation(supabase, userData.email);
+          }
 
           if (authError) {
             results.failed++;
