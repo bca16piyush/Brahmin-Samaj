@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.send-security-alert]
 verify_jwt = true
+
+[functions.send-booking-notification]
+verify_jwt = false
