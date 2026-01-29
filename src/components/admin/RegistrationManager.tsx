@@ -24,6 +24,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { useUpdateAttendance, useSendEventReminders } from '@/hooks/useEventRegistrations';
 import { useToast } from '@/hooks/use-toast';
+import { generateSecurePassword, sendPasswordResetAfterCreation } from '@/lib/securePassword';
 
 const SAMPLE_REGISTRATION_CSV = `user_email,user_name,user_mobile
 rajesh@example.com,Rajesh Sharma,9876543210
@@ -164,10 +165,12 @@ export function RegistrationManager() {
       if (existingProfiles) {
         userId = existingProfiles.id;
       } else {
-        // Create new auth user
+        // Create new auth user with cryptographically secure password
+        const tempPassword = generateSecurePassword();
+        
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email: data.email,
-          password: Math.random().toString(36).slice(-12) + 'A1!',
+          password: tempPassword,
           options: {
             data: {
               name: data.name,
@@ -175,6 +178,11 @@ export function RegistrationManager() {
             },
           },
         });
+        
+        // Send password reset email so user can set their own password
+        if (authData?.user) {
+          await sendPasswordResetAfterCreation(supabase, data.email);
+        }
 
         if (authError) throw authError;
         if (!authData.user) throw new Error('Failed to create user');
