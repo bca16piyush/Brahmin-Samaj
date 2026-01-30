@@ -619,35 +619,55 @@ export type Database = {
       }
     }
     Views: {
-      notification_subscriptions_admin: {
+      in_kind_donations_user: {
         Row: {
           created_at: string | null
-          email_notifications: boolean | null
+          donor_address: string | null
+          donor_phone: string | null
+          dropoff_location: string | null
           id: string | null
-          push_subscription: Json | null
+          item_type: string | null
+          notes: string | null
+          quantity: string | null
+          received_at: string | null
+          status: string | null
           user_id: string | null
-          whatsapp_notifications: boolean | null
-          whatsapp_number_masked: string | null
         }
         Insert: {
           created_at?: string | null
-          email_notifications?: boolean | null
+          donor_address?: never
+          donor_phone?: never
+          dropoff_location?: string | null
           id?: string | null
-          push_subscription?: Json | null
+          item_type?: string | null
+          notes?: string | null
+          quantity?: string | null
+          received_at?: string | null
+          status?: string | null
           user_id?: string | null
-          whatsapp_notifications?: boolean | null
-          whatsapp_number_masked?: never
         }
         Update: {
           created_at?: string | null
-          email_notifications?: boolean | null
+          donor_address?: never
+          donor_phone?: never
+          dropoff_location?: string | null
           id?: string | null
-          push_subscription?: Json | null
+          item_type?: string | null
+          notes?: string | null
+          quantity?: string | null
+          received_at?: string | null
+          status?: string | null
           user_id?: string | null
-          whatsapp_notifications?: boolean | null
-          whatsapp_number_masked?: never
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_in_kind_donations_user_id"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pandits_public: {
         Row: {
