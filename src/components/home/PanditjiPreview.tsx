@@ -56,7 +56,7 @@ export function PanditjiPreview() {
           }} transition={{
             delay: 0.1
           }} className="font-heading text-3xl md:text-4xl font-bold text-foreground">
-              हमारे आदरणीय <span className="text-gradient-saffron font-serif">पंडितजी</span>
+              हमारे आदरणीय <span className="text-gradient-saffron font-sans">पंडितजी</span>
             </motion.h2>
           </div>
           {isLoggedIn && <Link to="/panditji">
