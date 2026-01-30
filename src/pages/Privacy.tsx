@@ -112,7 +112,7 @@ export default function Privacy() {
             <div className="bg-muted p-4 rounded-lg">
               <p><strong>Mahayagya - श्री प्रखर परोपकार मिशन</strong></p>
               <p>Email: info@mahayagya.com</p>
-              <p>Phone: +91 98765 43210</p>
+              <p>Phone: +91 6350048854</p>
               <p>Address: काशी, वाराणसी</p>
             </div>
           </section>
