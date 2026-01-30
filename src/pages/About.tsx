@@ -56,7 +56,7 @@ export default function About() {
           }} transition={{
             delay: 0.1
           }} className="font-heading text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-6">
-              महामंडलेश्वर स्वामी श्री <span className="text-gradient-saffron font-serif">प्रखर जी महाराज</span>
+              महामंडलेश्वर स्वामी श्री <span className="text-gradient-saffron font-sans">प्रखर जी महाराज</span>
             </motion.h1>
             <motion.p initial={{
             opacity: 0,
