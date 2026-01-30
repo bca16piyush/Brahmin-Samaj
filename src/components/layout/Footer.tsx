@@ -32,6 +32,7 @@ export function Footer() {
                 { name: 'Gallery', href: '/gallery' },
                 { name: 'Donations', href: '/donations' },
                 { name: 'Install App', href: '/install', icon: Download },
+                { name: 'Privacy Policy', href: '/privacy' },
               ].map((link) => (
                 <li key={link.name}>
                   <Link
