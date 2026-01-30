@@ -619,6 +619,36 @@ export type Database = {
       }
     }
     Views: {
+      notification_subscriptions_admin: {
+        Row: {
+          created_at: string | null
+          email_notifications: boolean | null
+          id: string | null
+          push_subscription: Json | null
+          user_id: string | null
+          whatsapp_notifications: boolean | null
+          whatsapp_number_masked: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email_notifications?: boolean | null
+          id?: string | null
+          push_subscription?: Json | null
+          user_id?: string | null
+          whatsapp_notifications?: boolean | null
+          whatsapp_number_masked?: never
+        }
+        Update: {
+          created_at?: string | null
+          email_notifications?: boolean | null
+          id?: string | null
+          push_subscription?: Json | null
+          user_id?: string | null
+          whatsapp_notifications?: boolean | null
+          whatsapp_number_masked?: never
+        }
+        Relationships: []
+      }
       pandits_public: {
         Row: {
           availability: string | null
@@ -680,6 +710,25 @@ export type Database = {
           _window_minutes?: number
         }
         Returns: boolean
+      }
+      get_notification_subscriptions_for_admin: {
+        Args: never
+        Returns: {
+          created_at: string
+          email_notifications: boolean
+          id: string
+          push_subscription: Json
+          user_id: string
+          whatsapp_notifications: boolean
+          whatsapp_number_masked: string
+        }[]
+      }
+      get_whatsapp_recipients_for_notification: {
+        Args: never
+        Returns: {
+          user_id: string
+          whatsapp_number: string
+        }[]
       }
       has_confirmed_booking: {
         Args: { _pandit_id: string; _user_id: string }
