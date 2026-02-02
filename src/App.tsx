@@ -17,6 +17,7 @@ import EventDetail from "./pages/EventDetail";
 import About from "./pages/About";
 import Admin from "./pages/Admin";
 import MyBookings from "./pages/MyBookings";
+import Rooms from "./pages/Rooms";
 import Install from "./pages/Install";
 import Privacy from "./pages/Privacy";
 import NotFound from "./pages/NotFound";
@@ -47,6 +48,7 @@ const App = () => (
             <Route path="/about" element={<About />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/my-bookings" element={<MyBookings />} />
+            <Route path="/rooms" element={<Rooms />} />
             <Route path="/install" element={<Install />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="*" element={<NotFound />} />
