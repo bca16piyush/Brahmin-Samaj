@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.send-bulk-whatsapp]
 verify_jwt = true
+
+[functions.send-low-stock-alerts]
+verify_jwt = true
