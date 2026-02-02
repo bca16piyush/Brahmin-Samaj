@@ -245,6 +245,45 @@ export type Database = {
           },
         ]
       }
+      inventory_items: {
+        Row: {
+          category: Database["public"]["Enums"]["inventory_category"]
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          min_stock_level: number
+          name: string
+          unit: string
+          updated_at: string | null
+        }
+        Insert: {
+          category?: Database["public"]["Enums"]["inventory_category"]
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          min_stock_level?: number
+          name: string
+          unit?: string
+          updated_at?: string | null
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["inventory_category"]
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          min_stock_level?: number
+          name?: string
+          unit?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       monetary_donations: {
         Row: {
           amount: number
@@ -599,6 +638,105 @@ export type Database = {
         }
         Relationships: []
       }
+      stock_in: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          id: string
+          item_id: string
+          notes: string | null
+          purchase_date: string
+          quantity: number
+          supplier: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          item_id: string
+          notes?: string | null
+          purchase_date?: string
+          quantity: number
+          supplier?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          item_id?: string
+          notes?: string | null
+          purchase_date?: string
+          quantity?: number
+          supplier?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_in_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_in_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_stock_balance"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_out: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          customer_name: string | null
+          exit_date: string
+          id: string
+          item_id: string
+          notes: string | null
+          purpose: string | null
+          quantity: number
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          customer_name?: string | null
+          exit_date?: string
+          id?: string
+          item_id: string
+          notes?: string | null
+          purpose?: string | null
+          quantity: number
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          customer_name?: string | null
+          exit_date?: string
+          id?: string
+          item_id?: string
+          notes?: string | null
+          purpose?: string | null
+          quantity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_out_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_out_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_stock_balance"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string
@@ -668,6 +806,22 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      inventory_stock_balance: {
+        Row: {
+          category: Database["public"]["Enums"]["inventory_category"] | null
+          current_stock: number | null
+          description: string | null
+          id: string | null
+          is_active: boolean | null
+          is_low_stock: boolean | null
+          min_stock_level: number | null
+          name: string | null
+          total_stock_in: number | null
+          total_stock_out: number | null
+          unit: string | null
+        }
+        Relationships: []
       }
       pandits_public: {
         Row: {
@@ -765,6 +919,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
+      inventory_category: "puja_materials" | "food_prasad" | "other"
       verification_status: "none" | "pending" | "verified" | "rejected"
     }
     CompositeTypes: {
@@ -894,6 +1049,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "moderator", "user"],
+      inventory_category: ["puja_materials", "food_prasad", "other"],
       verification_status: ["none", "pending", "verified", "rejected"],
     },
   },
