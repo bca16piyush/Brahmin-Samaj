@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Send, Upload, FileText, Users, Clock, AlertCircle, CheckCircle, Image, Video, File, X, Paperclip, Eye } from 'lucide-react';
+import { Send, Upload, FileText, Users, Clock, AlertCircle, CheckCircle, Image, Video, File, X, Paperclip, Eye, Pause, Play, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
   DropdownMenu,
@@ -39,6 +40,9 @@ interface MediaAttachment {
   preview?: string;
 }
 
+// Threshold for showing confirmation dialog
+const LARGE_LIST_THRESHOLD = 500;
+
 export function BulkWhatsAppMessaging() {
   const { toast } = useToast();
   const [recipients, setRecipients] = useState<Recipient[]>([]);
@@ -46,13 +50,19 @@ export function BulkWhatsAppMessaging() {
   const [messageTemplate, setMessageTemplate] = useState('');
   const [delaySeconds, setDelaySeconds] = useState('5');
   const [isSending, setIsSending] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [sendProgress, setSendProgress] = useState(0);
   const [sendResults, setSendResults] = useState<SendResult[]>([]);
   const [showResults, setShowResults] = useState(false);
   const [csvError, setCsvError] = useState<string | null>(null);
   const [mediaAttachments, setMediaAttachments] = useState<MediaAttachment[]>([]);
   const [showPreview, setShowPreview] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [currentBatch, setCurrentBatch] = useState(0);
+  const [totalBatches, setTotalBatches] = useState(0);
   const mediaInputRef = useRef<HTMLInputElement>(null);
+  const pauseRef = useRef(false);
+  const abortRef = useRef(false);
 
   // Maximum attachments allowed
   const MAX_ATTACHMENTS = 5;
@@ -220,8 +230,8 @@ export function BulkWhatsAppMessaging() {
   // Batch size for API calls (edge function limit is 1000)
   const BATCH_SIZE = 1000;
 
-  // Send bulk messages with batching support
-  const handleSendBulk = async () => {
+  // Check if confirmation is needed and start send
+  const initiatesSend = () => {
     if (recipients.length === 0 || !title || !messageTemplate) {
       toast({
         title: 'Missing Information',
@@ -231,9 +241,52 @@ export function BulkWhatsAppMessaging() {
       return;
     }
 
+    // Show confirmation for large lists
+    if (recipients.length > LARGE_LIST_THRESHOLD) {
+      setShowConfirmDialog(true);
+    } else {
+      handleSendBulk();
+    }
+  };
+
+  // Handle pause/resume
+  const togglePause = () => {
+    if (isPaused) {
+      pauseRef.current = false;
+      setIsPaused(false);
+      toast({ title: 'Resuming...', description: 'Continuing to send messages' });
+    } else {
+      pauseRef.current = true;
+      setIsPaused(true);
+      toast({ title: 'Paused', description: 'Sending will pause after current batch completes' });
+    }
+  };
+
+  // Handle abort
+  const handleAbort = () => {
+    abortRef.current = true;
+    pauseRef.current = false;
+    setIsPaused(false);
+    toast({ title: 'Stopping...', description: 'Send will stop after current batch' });
+  };
+
+  // Wait for unpause
+  const waitForResume = async (): Promise<boolean> => {
+    while (pauseRef.current && !abortRef.current) {
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    return !abortRef.current;
+  };
+
+  // Send bulk messages with batching support
+  const handleSendBulk = async () => {
+    setShowConfirmDialog(false);
     setIsSending(true);
     setSendProgress(0);
     setSendResults([]);
+    pauseRef.current = false;
+    abortRef.current = false;
+    setIsPaused(false);
 
     try {
       // Get auth token
@@ -269,12 +322,42 @@ export function BulkWhatsAppMessaging() {
         batches.push(recipients.slice(i, i + BATCH_SIZE));
       }
 
+      setTotalBatches(batches.length);
+
       let allResults: SendResult[] = [];
       let totalSent = 0;
       let totalFailed = 0;
 
       // Process each batch
       for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+        // Check for abort
+        if (abortRef.current) {
+          toast({
+            title: 'Send Aborted',
+            description: `Stopped after ${batchIndex} of ${batches.length} batches`,
+            variant: 'destructive',
+          });
+          break;
+        }
+
+        // Check for pause and wait if needed
+        if (pauseRef.current) {
+          toast({
+            title: 'Paused',
+            description: `Paused at batch ${batchIndex + 1}/${batches.length}. Click Resume to continue.`,
+          });
+          const shouldContinue = await waitForResume();
+          if (!shouldContinue) {
+            toast({
+              title: 'Send Aborted',
+              description: `Stopped at batch ${batchIndex + 1} of ${batches.length}`,
+              variant: 'destructive',
+            });
+            break;
+          }
+        }
+
+        setCurrentBatch(batchIndex + 1);
         const batch = batches[batchIndex];
         const batchStart = batchIndex * BATCH_SIZE;
         
@@ -319,7 +402,7 @@ export function BulkWhatsAppMessaging() {
         setSendProgress(Math.floor(((batchIndex + 1) / batches.length) * 100));
 
         // Add a small delay between batches to avoid rate limiting
-        if (batchIndex < batches.length - 1) {
+        if (batchIndex < batches.length - 1 && !abortRef.current) {
           await new Promise(resolve => setTimeout(resolve, 2000));
         }
       }
@@ -327,11 +410,13 @@ export function BulkWhatsAppMessaging() {
       setSendResults(allResults);
       setShowResults(true);
 
-      toast({
-        title: 'Bulk Send Complete',
-        description: `Sent: ${totalSent}, Failed: ${totalFailed}${batches.length > 1 ? ` (${batches.length} batches)` : ''}`,
-        variant: totalFailed > 0 ? 'destructive' : 'default',
-      });
+      if (!abortRef.current) {
+        toast({
+          title: 'Bulk Send Complete',
+          description: `Sent: ${totalSent}, Failed: ${totalFailed}${batches.length > 1 ? ` (${batches.length} batches)` : ''}`,
+          variant: totalFailed > 0 ? 'destructive' : 'default',
+        });
+      }
     } catch (err) {
       console.error('Bulk send error:', err);
       toast({
@@ -341,6 +426,11 @@ export function BulkWhatsAppMessaging() {
       });
     } finally {
       setIsSending(false);
+      setIsPaused(false);
+      setCurrentBatch(0);
+      setTotalBatches(0);
+      pauseRef.current = false;
+      abortRef.current = false;
     }
   };
 
@@ -574,12 +664,57 @@ export function BulkWhatsAppMessaging() {
 
           {/* Progress */}
           {isSending && (
-            <div className="space-y-2">
+            <div className="space-y-4 bg-muted/50 p-4 rounded-lg">
               <div className="flex justify-between text-sm">
-                <span>Sending messages...</span>
+                <span className="flex items-center gap-2">
+                  {isPaused ? (
+                    <>
+                      <Pause className="h-4 w-4 text-amber-500" />
+                      <span className="text-amber-600 dark:text-amber-400">Paused</span>
+                    </>
+                  ) : (
+                    <>Sending messages...</>
+                  )}
+                  {totalBatches > 1 && (
+                    <Badge variant="secondary">
+                      Batch {currentBatch}/{totalBatches}
+                    </Badge>
+                  )}
+                </span>
                 <span>{sendProgress}%</span>
               </div>
               <Progress value={sendProgress} />
+              
+              {/* Pause/Resume and Stop controls */}
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={togglePause}
+                  className="gap-2"
+                >
+                  {isPaused ? (
+                    <>
+                      <Play className="h-4 w-4" />
+                      Resume
+                    </>
+                  ) : (
+                    <>
+                      <Pause className="h-4 w-4" />
+                      Pause
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleAbort}
+                  className="gap-2"
+                >
+                  <X className="h-4 w-4" />
+                  Stop Sending
+                </Button>
+              </div>
             </div>
           )}
 
@@ -595,7 +730,7 @@ export function BulkWhatsAppMessaging() {
               Preview Message
             </Button>
             <Button
-              onClick={handleSendBulk}
+              onClick={initiatesSend}
               disabled={isSending || recipients.length === 0 || !title || !messageTemplate}
               className="gap-2"
             >
@@ -735,6 +870,58 @@ export function BulkWhatsAppMessaging() {
           </Table>
         </DialogContent>
       </Dialog>
+
+      {/* Large List Confirmation Dialog */}
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-amber-600">
+              <AlertTriangle className="h-5 w-5" />
+              Confirm Mass Messaging
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-4">
+              <p>
+                You are about to send messages to <strong className="text-foreground">{recipients.length.toLocaleString()}</strong> recipients.
+              </p>
+              
+              <div className="bg-muted p-3 rounded-lg space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span>Recipients:</span>
+                  <span className="font-medium">{recipients.length.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Estimated time:</span>
+                  <span className="font-medium">~{Math.ceil(recipients.length * parseInt(delaySeconds) / 60)} minutes</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Batches:</span>
+                  <span className="font-medium">{Math.ceil(recipients.length / BATCH_SIZE)}</span>
+                </div>
+                {mediaAttachments.length > 0 && (
+                  <div className="flex justify-between">
+                    <span>Media attachments:</span>
+                    <span className="font-medium">{mediaAttachments.length}</span>
+                  </div>
+                )}
+              </div>
+
+              <Alert variant="default" className="border-amber-500/50 bg-amber-500/10">
+                <AlertTriangle className="h-4 w-4 text-amber-500" />
+                <AlertDescription className="text-xs">
+                  This action cannot be undone. Messages will be sent immediately. You can pause or stop the process once it starts.
+                </AlertDescription>
+              </Alert>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSendBulk} className="bg-primary">
+              <Send className="h-4 w-4 mr-2" />
+              Confirm & Send
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </motion.div>
   );
 }
