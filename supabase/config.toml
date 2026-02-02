@@ -29,3 +29,12 @@ verify_jwt = true
 
 [functions.send-low-stock-alerts]
 verify_jwt = true
+
+[functions.send-otp]
+verify_jwt = false
+
+[functions.verify-otp]
+verify_jwt = false
+
+[functions.reset-password-with-otp]
+verify_jwt = false
