@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Send, Upload, FileText, Users, Clock, AlertCircle, CheckCircle, Image, Video, File, X, Paperclip } from 'lucide-react';
+import { Send, Upload, FileText, Users, Clock, AlertCircle, CheckCircle, Image, Video, File, X, Paperclip, Eye } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -50,8 +50,12 @@ export function BulkWhatsAppMessaging() {
   const [sendResults, setSendResults] = useState<SendResult[]>([]);
   const [showResults, setShowResults] = useState(false);
   const [csvError, setCsvError] = useState<string | null>(null);
-  const [mediaAttachment, setMediaAttachment] = useState<MediaAttachment | null>(null);
+  const [mediaAttachments, setMediaAttachments] = useState<MediaAttachment[]>([]);
+  const [showPreview, setShowPreview] = useState(false);
   const mediaInputRef = useRef<HTMLInputElement>(null);
+
+  // Maximum attachments allowed
+  const MAX_ATTACHMENTS = 5;
 
   // Parse CSV file
   const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
@@ -176,18 +180,41 @@ export function BulkWhatsAppMessaging() {
       const reader = new FileReader();
       reader.onload = (event) => {
         newAttachment.preview = event.target?.result as string;
-        setMediaAttachment(newAttachment);
+        setMediaAttachments(prev => [...prev, newAttachment]);
       };
       reader.readAsDataURL(file);
     } else {
-      setMediaAttachment(newAttachment);
+      setMediaAttachments(prev => [...prev, newAttachment]);
     }
 
     e.target.value = '';
   };
 
-  const removeMediaAttachment = () => {
-    setMediaAttachment(null);
+  const removeMediaAttachment = (index: number) => {
+    setMediaAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Get personalized message preview
+  const getPreviewMessage = () => {
+    const sampleRecipient = recipients[0] || { name: 'भक्त', customFields: {} };
+    let message = messageTemplate;
+    
+    // Replace {name} tag
+    if (sampleRecipient.name) {
+      message = message.replace(/\{name\}/gi, sampleRecipient.name);
+    } else {
+      message = message.replace(/\{name\}/gi, 'भक्त');
+    }
+    
+    // Replace custom field tags
+    if (sampleRecipient.customFields) {
+      for (const [key, value] of Object.entries(sampleRecipient.customFields)) {
+        const regex = new RegExp(`\\{${key}\\}`, 'gi');
+        message = message.replace(regex, value);
+      }
+    }
+    
+    return message;
   };
 
   // Send bulk messages
@@ -212,15 +239,14 @@ export function BulkWhatsAppMessaging() {
         throw new Error('Not authenticated');
       }
 
-      // If there's a media attachment, upload it first
-      let mediaUrl: string | undefined;
-      let mediaType: string | undefined;
+      // If there are media attachments, upload them first
+      const mediaUrls: { url: string; type: string }[] = [];
 
-      if (mediaAttachment) {
-        const fileName = `bulk-whatsapp/${Date.now()}-${mediaAttachment.file.name}`;
+      for (const attachment of mediaAttachments) {
+        const fileName = `bulk-whatsapp/${Date.now()}-${attachment.file.name}`;
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('gallery')
-          .upload(fileName, mediaAttachment.file);
+          .upload(fileName, attachment.file);
 
         if (uploadError) throw new Error('Failed to upload media file');
 
@@ -228,8 +254,10 @@ export function BulkWhatsAppMessaging() {
           .from('gallery')
           .getPublicUrl(fileName);
 
-        mediaUrl = publicUrl.publicUrl;
-        mediaType = mediaAttachment.type;
+        mediaUrls.push({
+          url: publicUrl.publicUrl,
+          type: attachment.type,
+        });
       }
 
       // Simulate progress while waiting
@@ -237,14 +265,17 @@ export function BulkWhatsAppMessaging() {
         setSendProgress(prev => Math.min(prev + 1, 95));
       }, (recipients.length * parseInt(delaySeconds) * 1000) / 100);
 
+      // Send with first attachment for now (WhatsApp API limitation: one media per message)
+      // For multiple attachments, we'll send multiple messages
       const { data, error } = await supabase.functions.invoke('send-bulk-whatsapp', {
         body: {
           recipients,
           title,
           messageTemplate,
           delayMs: parseInt(delaySeconds) * 1000,
-          mediaUrl,
-          mediaType,
+          mediaUrl: mediaUrls[0]?.url,
+          mediaType: mediaUrls[0]?.type,
+          additionalMedia: mediaUrls.slice(1), // Send additional media info for follow-up messages
         },
       });
 
@@ -281,7 +312,7 @@ export function BulkWhatsAppMessaging() {
     setSendResults([]);
     setSendProgress(0);
     setCsvError(null);
-    setMediaAttachment(null);
+    setMediaAttachments([]);
   };
 
   const availableTags = ['{name}', ...Object.keys(recipients[0]?.customFields || {}).map(k => `{${k}}`)];
@@ -391,7 +422,7 @@ export function BulkWhatsAppMessaging() {
             <div className="space-y-2">
               <Label className="flex items-center gap-2">
                 <Paperclip className="h-4 w-4" />
-                Attach Media (Optional)
+                Attach Media (Optional - Max {MAX_ATTACHMENTS})
               </Label>
               
               {/* Hidden file input */}
@@ -402,18 +433,18 @@ export function BulkWhatsAppMessaging() {
                 onChange={handleMediaChange}
               />
 
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button 
                       type="button" 
                       variant="outline" 
                       size="sm"
-                      disabled={isSending || mediaAttachment !== null}
+                      disabled={isSending || mediaAttachments.length >= MAX_ATTACHMENTS}
                       className="gap-2"
                     >
                       <Paperclip className="h-4 w-4" />
-                      Add Media
+                      Add Media ({mediaAttachments.length}/{MAX_ATTACHMENTS})
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start" className="w-44">
@@ -436,45 +467,45 @@ export function BulkWhatsAppMessaging() {
                   </DropdownMenuContent>
                 </DropdownMenu>
 
-                {/* Media preview */}
-                {mediaAttachment && (
-                  <div className="flex items-center gap-2 bg-muted rounded-lg px-3 py-2">
-                    {mediaAttachment.type === 'image' && mediaAttachment.preview ? (
+                {/* Media attachments list */}
+                {mediaAttachments.map((attachment, index) => (
+                  <div key={index} className="flex items-center gap-2 bg-muted rounded-lg px-3 py-2">
+                    {attachment.type === 'image' && attachment.preview ? (
                       <img 
-                        src={mediaAttachment.preview} 
+                        src={attachment.preview} 
                         alt="Preview" 
                         className="h-10 w-10 rounded object-cover"
                       />
-                    ) : mediaAttachment.type === 'video' ? (
+                    ) : attachment.type === 'video' ? (
                       <Video className="h-5 w-5 text-primary" />
-                    ) : mediaAttachment.type === 'pdf' ? (
+                    ) : attachment.type === 'pdf' ? (
                       <FileText className="h-5 w-5 text-destructive" />
                     ) : (
                       <File className="h-5 w-5 text-primary" />
                     )}
                     <div className="flex flex-col">
-                      <span className="text-sm font-medium max-w-[150px] truncate">
-                        {mediaAttachment.file.name}
+                      <span className="text-sm font-medium max-w-[120px] truncate">
+                        {attachment.file.name}
                       </span>
                       <span className="text-xs text-muted-foreground">
-                        {(mediaAttachment.file.size / 1024 / 1024).toFixed(2)} MB
+                        {(attachment.file.size / 1024 / 1024).toFixed(2)} MB
                       </span>
                     </div>
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="h-6 w-6 ml-2"
-                      onClick={removeMediaAttachment}
+                      className="h-6 w-6 ml-1"
+                      onClick={() => removeMediaAttachment(index)}
                     >
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
-                )}
+                ))}
               </div>
               
               <p className="text-xs text-muted-foreground">
-                Max size: Images/Documents 5MB, Videos 16MB. Supported formats: JPG, PNG, MP4, PDF, DOC, XLS, PPT
+                Max size: Images/Documents 5MB, Videos 16MB. First media is sent with the main message, additional media sent as follow-ups.
               </p>
             </div>
 
@@ -513,7 +544,16 @@ export function BulkWhatsAppMessaging() {
           )}
 
           {/* Actions */}
-          <div className="flex gap-4 border-t pt-4">
+          <div className="flex flex-wrap gap-4 border-t pt-4">
+            <Button
+              variant="outline"
+              onClick={() => setShowPreview(true)}
+              disabled={!title || !messageTemplate}
+              className="gap-2"
+            >
+              <Eye className="h-4 w-4" />
+              Preview Message
+            </Button>
             <Button
               onClick={handleSendBulk}
               disabled={isSending || recipients.length === 0 || !title || !messageTemplate}
@@ -528,6 +568,85 @@ export function BulkWhatsAppMessaging() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Preview Dialog */}
+      <Dialog open={showPreview} onOpenChange={setShowPreview}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="h-5 w-5" />
+              Message Preview
+            </DialogTitle>
+            <DialogDescription>
+              This is how your message will appear to recipients
+            </DialogDescription>
+          </DialogHeader>
+          
+          {/* WhatsApp-style message preview */}
+          <div className="bg-[#e5ddd5] dark:bg-[#0b141a] p-4 rounded-lg min-h-[300px]">
+            <div className="bg-[#dcf8c6] dark:bg-[#005c4b] rounded-lg p-3 max-w-[85%] ml-auto shadow-sm">
+              {/* Media attachments preview */}
+              {mediaAttachments.length > 0 && (
+                <div className="mb-2 space-y-2">
+                  {mediaAttachments.map((attachment, index) => (
+                    <div key={index} className="rounded overflow-hidden">
+                      {attachment.type === 'image' && attachment.preview ? (
+                        <img 
+                          src={attachment.preview} 
+                          alt="Attached" 
+                          className="w-full max-h-40 object-cover rounded"
+                        />
+                      ) : attachment.type === 'video' ? (
+                        <div className="bg-black/20 p-4 rounded flex items-center gap-2">
+                          <Video className="h-8 w-8" />
+                          <span className="text-sm">{attachment.file.name}</span>
+                        </div>
+                      ) : (
+                        <div className="bg-white/20 dark:bg-black/20 p-3 rounded flex items-center gap-2">
+                          {attachment.type === 'pdf' ? (
+                            <FileText className="h-6 w-6 text-red-500" />
+                          ) : (
+                            <File className="h-6 w-6 text-blue-500" />
+                          )}
+                          <span className="text-sm truncate">{attachment.file.name}</span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {/* Message text */}
+              <div className="text-sm text-black dark:text-white whitespace-pre-wrap">
+                <span className="font-bold">{title}</span>
+                {title && messageTemplate && '\n\n'}
+                {getPreviewMessage()}
+              </div>
+              
+              {/* Timestamp */}
+              <div className="text-[10px] text-gray-500 dark:text-gray-400 text-right mt-1">
+                {new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })} ✓✓
+              </div>
+            </div>
+          </div>
+
+          {/* Sample recipient info */}
+          {recipients.length > 0 && (
+            <div className="text-xs text-muted-foreground bg-muted p-3 rounded">
+              <span className="font-medium">Preview for:</span> {recipients[0].name || 'First recipient'} ({recipients[0].phone})
+            </div>
+          )}
+
+          {mediaAttachments.length > 1 && (
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="text-xs">
+                Note: WhatsApp allows one media per message. Additional media ({mediaAttachments.length - 1} file{mediaAttachments.length > 2 ? 's' : ''}) will be sent as follow-up messages.
+              </AlertDescription>
+            </Alert>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Results Dialog */}
       <Dialog open={showResults} onOpenChange={setShowResults}>

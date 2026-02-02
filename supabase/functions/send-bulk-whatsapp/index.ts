@@ -19,6 +19,10 @@ const bulkMessageSchema = z.object({
   delayMs: z.number().min(1000).max(60000).optional().default(5000), // 1-60 seconds delay, default 5s
   mediaUrl: z.string().url().optional(),
   mediaType: z.enum(['image', 'video', 'document', 'pdf']).optional(),
+  additionalMedia: z.array(z.object({
+    url: z.string().url(),
+    type: z.string(),
+  })).optional(),
 });
 
 // Helper to replace personalization tags in message
@@ -121,9 +125,9 @@ serve(async (req) => {
       );
     }
 
-    const { recipients, messageTemplate, title, delayMs, mediaUrl, mediaType } = validation.data;
+    const { recipients, messageTemplate, title, delayMs, mediaUrl, mediaType, additionalMedia } = validation.data;
 
-    console.log(`Starting bulk WhatsApp: ${recipients.length} recipients, ${delayMs}ms delay, media: ${mediaType || 'none'}`);
+    console.log(`Starting bulk WhatsApp: ${recipients.length} recipients, ${delayMs}ms delay, media: ${mediaType || 'none'}, additional media: ${additionalMedia?.length || 0}`);
 
     // Log audit event at start
     await supabase.from('admin_audit_logs').insert({
@@ -202,12 +206,39 @@ serve(async (req) => {
       };
     };
 
+    // Helper function to build additional media payloads
+    const buildAdditionalMediaPayload = (formattedPhone: string, mediaInfo: { url: string; type: string }) => {
+      const basePayload = {
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: formattedPhone,
+      };
+
+      const whatsappMediaType = mediaInfo.type === 'pdf' ? 'document' : mediaInfo.type;
+
+      if (whatsappMediaType === 'image') {
+        return { ...basePayload, type: 'image', image: { link: mediaInfo.url } };
+      } else if (whatsappMediaType === 'video') {
+        return { ...basePayload, type: 'video', video: { link: mediaInfo.url } };
+      } else {
+        return { 
+          ...basePayload, 
+          type: 'document', 
+          document: { 
+            link: mediaInfo.url,
+            filename: mediaInfo.url.split('/').pop() || 'document',
+          } 
+        };
+      }
+    };
+
     for (let i = 0; i < recipients.length; i++) {
       const recipient = recipients[i];
       const formattedPhone = recipient.phone.replace(/[^0-9]/g, '');
       const personalizedMessage = personalizeMessage(messageTemplate, recipient);
 
       try {
+        // Send main message (with first media if any)
         const messagePayload = buildMessagePayload(formattedPhone, personalizedMessage);
         
         const response = await fetch(
@@ -226,6 +257,32 @@ serve(async (req) => {
           results.push({ phone: recipient.phone, success: true });
           successful++;
           console.log(`[${i + 1}/${recipients.length}] Sent to ${formattedPhone}`);
+
+          // Send additional media as follow-up messages
+          if (additionalMedia && additionalMedia.length > 0) {
+            for (let j = 0; j < additionalMedia.length; j++) {
+              await delay(1000); // 1 second delay between additional media
+              const additionalPayload = buildAdditionalMediaPayload(formattedPhone, additionalMedia[j]);
+              
+              const additionalResponse = await fetch(
+                `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
+                {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Bearer ${whatsappToken}`,
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify(additionalPayload),
+                }
+              );
+
+              if (!additionalResponse.ok) {
+                console.error(`[${i + 1}/${recipients.length}] Additional media ${j + 1} failed for ${formattedPhone}`);
+              } else {
+                console.log(`[${i + 1}/${recipients.length}] Additional media ${j + 1} sent to ${formattedPhone}`);
+              }
+            }
+          }
         } else {
           const errorData = await response.json();
           results.push({ 
