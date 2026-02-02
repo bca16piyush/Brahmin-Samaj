@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { format, isToday, isTomorrow, addDays } from 'date-fns';
-import { Bed, CalendarCheck, Users, Ban, DollarSign, Plus, Lock, Unlock, Calendar, Mail } from 'lucide-react';
+import { Bed, CalendarCheck, Users, Ban, DollarSign, Plus, Lock, Unlock, Calendar, Mail, Image } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { RoomTypeImageUpload } from './RoomTypeImageUpload';
 import {
   useRooms,
   useRoomTypes,
@@ -521,74 +522,89 @@ export function RoomManager() {
         <TabsContent value="pricing">
           <Card>
             <CardHeader>
-              <CardTitle>Room Pricing</CardTitle>
-              <CardDescription>Update room type prices dynamically</CardDescription>
+              <CardTitle>Room Types & Pricing</CardTitle>
+              <CardDescription>Manage room type images and prices</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Room Type</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead>Capacity</TableHead>
-                      <TableHead>Price/Night</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {roomTypes?.map((type) => (
-                      <TableRow key={type.id}>
-                        <TableCell className="font-medium">{type.name}</TableCell>
-                        <TableCell className="max-w-[200px] truncate">{type.description}</TableCell>
-                        <TableCell>{type.capacity}</TableCell>
-                        <TableCell>
-                          {editingPrice === type.id ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {roomTypes?.map((type) => (
+                  <Card key={type.id} className="overflow-hidden">
+                    <div className="relative">
+                      {type.image_url ? (
+                        <img
+                          src={type.image_url}
+                          alt={type.name}
+                          className="w-full h-40 object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-40 bg-muted flex items-center justify-center">
+                          <Image className="h-12 w-12 text-muted-foreground" />
+                        </div>
+                      )}
+                    </div>
+                    <CardContent className="p-4 space-y-4">
+                      <div>
+                        <h3 className="font-semibold text-lg">{type.name}</h3>
+                        <p className="text-sm text-muted-foreground line-clamp-2">{type.description}</p>
+                      </div>
+
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Capacity</span>
+                        <Badge variant="secondary">{type.capacity} guests</Badge>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground text-sm">Price/Night</span>
+                        {editingPrice === type.id ? (
+                          <div className="flex items-center gap-2">
                             <Input
                               type="number"
                               value={newPrice}
                               onChange={(e) => setNewPrice(e.target.value)}
-                              className="w-24"
+                              className="w-24 h-8"
                               autoFocus
                             />
-                          ) : (
-                            <span className="font-semibold">₹{type.price_per_night}</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {editingPrice === type.id ? (
-                            <div className="flex gap-2">
-                              <Button size="sm" onClick={() => handleUpdatePrice(type.id)}>
-                                Save
-                              </Button>
-                              <Button 
-                                size="sm" 
-                                variant="ghost"
-                                onClick={() => {
-                                  setEditingPrice(null);
-                                  setNewPrice('');
-                                }}
-                              >
-                                Cancel
-                              </Button>
-                            </div>
-                          ) : (
+                            <Button size="sm" onClick={() => handleUpdatePrice(type.id)}>
+                              Save
+                            </Button>
                             <Button 
                               size="sm" 
-                              variant="outline"
+                              variant="ghost"
+                              onClick={() => {
+                                setEditingPrice(null);
+                                setNewPrice('');
+                              }}
+                            >
+                              ✕
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-lg">₹{type.price_per_night}</span>
+                            <Button 
+                              size="sm" 
+                              variant="ghost"
                               onClick={() => {
                                 setEditingPrice(type.id);
                                 setNewPrice(type.price_per_night.toString());
                               }}
                             >
-                              Edit Price
+                              Edit
                             </Button>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="pt-2 border-t">
+                        <Label className="text-sm font-medium mb-2 block">Room Image</Label>
+                        <RoomTypeImageUpload 
+                          roomTypeId={type.id} 
+                          currentImageUrl={type.image_url} 
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             </CardContent>
           </Card>

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Package, Plus, ArrowUpCircle, ArrowDownCircle, History, AlertTriangle, TrendingUp } from 'lucide-react';
+import { Package, Plus, ArrowUpCircle, ArrowDownCircle, History, AlertTriangle, TrendingUp, MessageSquare, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +12,8 @@ import { StockOutForm } from './StockOutForm';
 import { InventoryItemForm } from './InventoryItemForm';
 import { TransactionHistory } from './TransactionHistory';
 import { InventoryReports } from './InventoryReports';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 const categoryLabels: Record<InventoryCategory, string> = {
   puja_materials: 'Puja Materials',
@@ -24,9 +26,50 @@ export function InventoryDashboard() {
   const [showStockInForm, setShowStockInForm] = useState(false);
   const [showStockOutForm, setShowStockOutForm] = useState(false);
   const [showItemForm, setShowItemForm] = useState(false);
+  const [sendingAlerts, setSendingAlerts] = useState(false);
+  const { toast } = useToast();
 
   const lowStockItems = stockBalance?.filter(item => item.is_low_stock) || [];
   const totalItems = stockBalance?.length || 0;
+
+  const handleSendLowStockAlerts = async () => {
+    if (lowStockItems.length === 0) {
+      toast({
+        title: 'No Low Stock Items',
+        description: 'There are no items below minimum stock level.',
+      });
+      return;
+    }
+
+    setSendingAlerts(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-low-stock-alerts');
+      
+      if (error) throw error;
+
+      if (data.sent > 0) {
+        toast({
+          title: 'Alerts Sent',
+          description: `Low stock alert sent to ${data.sent} admin(s).`,
+        });
+      } else {
+        toast({
+          title: 'No Recipients',
+          description: 'No admin users have WhatsApp notifications enabled.',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      console.error('Failed to send alerts:', error);
+      toast({
+        title: 'Failed to Send Alerts',
+        description: error instanceof Error ? error.message : 'An error occurred',
+        variant: 'destructive',
+      });
+    } finally {
+      setSendingAlerts(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -64,7 +107,23 @@ export function InventoryDashboard() {
             <div className={`text-2xl font-bold ${lowStockItems.length > 0 ? 'text-destructive' : ''}`}>
               {lowStockItems.length}
             </div>
-            <p className="text-xs text-muted-foreground">Items below minimum level</p>
+            <p className="text-xs text-muted-foreground mb-2">Items below minimum level</p>
+            {lowStockItems.length > 0 && (
+              <Button 
+                size="sm" 
+                variant="destructive" 
+                className="w-full gap-2"
+                onClick={handleSendLowStockAlerts}
+                disabled={sendingAlerts}
+              >
+                {sendingAlerts ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <MessageSquare className="h-4 w-4" />
+                )}
+                Send WhatsApp Alert
+              </Button>
+            )}
           </CardContent>
         </Card>
 
@@ -170,10 +229,10 @@ export function InventoryDashboard() {
                               {categoryLabels[item.category]}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-center text-green-600">
+                          <TableCell className="text-center text-emerald-600 dark:text-emerald-400">
                             +{item.total_stock_in} {item.unit}
                           </TableCell>
-                          <TableCell className="text-center text-red-600">
+                          <TableCell className="text-center text-destructive">
                             -{item.total_stock_out} {item.unit}
                           </TableCell>
                           <TableCell className="text-center font-bold">

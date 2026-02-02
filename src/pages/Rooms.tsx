@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { format, differenceInDays } from 'date-fns';
-import { CalendarIcon, Users, Bed, Search, MapPin, Wifi, Tv, Wind, Droplet } from 'lucide-react';
+import { CalendarIcon, Users, Bed, Search, Wifi, Tv, Wind, Droplet } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -171,9 +170,17 @@ export default function Rooms() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   {roomTypes?.map((type) => (
                     <Card key={type.id} className="overflow-hidden">
-                      <div className="h-40 bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-                        <Bed className="h-16 w-16 text-primary/40" />
-                      </div>
+                      {type.image_url ? (
+                        <img 
+                          src={type.image_url} 
+                          alt={type.name}
+                          className="h-40 w-full object-cover"
+                        />
+                      ) : (
+                        <div className="h-40 bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
+                          <Bed className="h-16 w-16 text-primary/40" />
+                        </div>
+                      )}
                       <CardHeader>
                         <CardTitle className="text-lg">{type.name}</CardTitle>
                         <CardDescription>{type.description}</CardDescription>
@@ -219,63 +226,76 @@ export default function Rooms() {
               ) : Object.keys(roomsByType).length > 0 ? (
                 <div className="space-y-8">
                   {Object.entries(roomsByType).map(([typeId, { type, rooms }]) => (
-                    <Card key={typeId}>
-                      <CardHeader>
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <CardTitle>{type?.name}</CardTitle>
-                            <CardDescription>{type?.description}</CardDescription>
+                    <Card key={typeId} className="overflow-hidden">
+                      <div className="md:flex">
+                        {type?.image_url && (
+                          <div className="md:w-64 md:shrink-0">
+                            <img 
+                              src={type.image_url} 
+                              alt={type.name}
+                              className="h-48 md:h-full w-full object-cover"
+                            />
                           </div>
-                          <div className="text-right">
-                            <div className="text-2xl font-bold">₹{type?.price_per_night}</div>
-                            <div className="text-sm text-muted-foreground">per night</div>
-                            <div className="text-lg font-semibold text-primary mt-1">
-                              Total: ₹{(type?.price_per_night || 0) * nights}
-                            </div>
-                          </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="flex flex-wrap gap-2 mb-4">
-                          {type?.amenities?.map((amenity: string) => (
-                            <Badge key={amenity} variant="secondary" className="gap-1">
-                              {amenityIcons[amenity] || null}
-                              {amenity}
-                            </Badge>
-                          ))}
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-                          <Users className="h-4 w-4" />
-                          <span>Capacity: Up to {type?.capacity} guests</span>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <span className="text-sm font-medium mr-2">Available Rooms:</span>
-                          {rooms.map((room) => (
-                            <Badge 
-                              key={room.id} 
-                              variant="outline"
-                              className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
-                              onClick={() => handleBookRoom(room)}
-                            >
-                              {room.room_number}
-                            </Badge>
-                          ))}
-                        </div>
-                      </CardContent>
-                      <CardFooter className="border-t pt-4">
-                        {isVerified ? (
-                          <Button 
-                            className="w-full"
-                            onClick={() => handleBookRoom(rooms[0])}
-                          >
-                            Book Now - ₹{(type?.price_per_night || 0) * nights} for {nights} night{nights > 1 ? 's' : ''}
-                          </Button>
-                        ) : (
-                          <LockedContent message="Only verified community members can book rooms">
-                            <Button className="w-full" disabled>Book Now</Button>
-                          </LockedContent>
                         )}
-                      </CardFooter>
+                        <div className="flex-1">
+                          <CardHeader>
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <CardTitle>{type?.name}</CardTitle>
+                                <CardDescription>{type?.description}</CardDescription>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-2xl font-bold">₹{type?.price_per_night}</div>
+                                <div className="text-sm text-muted-foreground">per night</div>
+                                <div className="text-lg font-semibold text-primary mt-1">
+                                  Total: ₹{(type?.price_per_night || 0) * nights}
+                                </div>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="flex flex-wrap gap-2 mb-4">
+                              {type?.amenities?.map((amenity: string) => (
+                                <Badge key={amenity} variant="secondary" className="gap-1">
+                                  {amenityIcons[amenity] || null}
+                                  {amenity}
+                                </Badge>
+                              ))}
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
+                              <Users className="h-4 w-4" />
+                              <span>Capacity: Up to {type?.capacity} guests</span>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              <span className="text-sm font-medium mr-2">Available Rooms:</span>
+                              {rooms.map((room) => (
+                                <Badge 
+                                  key={room.id} 
+                                  variant="outline"
+                                  className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
+                                  onClick={() => handleBookRoom(room)}
+                                >
+                                  {room.room_number}
+                                </Badge>
+                              ))}
+                            </div>
+                          </CardContent>
+                          <CardFooter className="border-t pt-4">
+                            {isVerified ? (
+                              <Button 
+                                className="w-full"
+                                onClick={() => handleBookRoom(rooms[0])}
+                              >
+                                Book Now - ₹{(type?.price_per_night || 0) * nights} for {nights} night{nights > 1 ? 's' : ''}
+                              </Button>
+                            ) : (
+                              <LockedContent message="Only verified community members can book rooms">
+                                <Button className="w-full" disabled>Book Now</Button>
+                              </LockedContent>
+                            )}
+                          </CardFooter>
+                        </div>
+                      </div>
                     </Card>
                   ))}
                 </div>
