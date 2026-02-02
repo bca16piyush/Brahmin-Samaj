@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Package, Plus, ArrowUpCircle, ArrowDownCircle, History, AlertTriangle } from 'lucide-react';
+import { Package, Plus, ArrowUpCircle, ArrowDownCircle, History, AlertTriangle, TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +11,7 @@ import { StockInForm } from './StockInForm';
 import { StockOutForm } from './StockOutForm';
 import { InventoryItemForm } from './InventoryItemForm';
 import { TransactionHistory } from './TransactionHistory';
+import { InventoryReports } from './InventoryReports';
 
 const categoryLabels: Record<InventoryCategory, string> = {
   puja_materials: 'Puja Materials',
@@ -123,6 +124,10 @@ export function InventoryDashboard() {
             <History className="h-4 w-4" />
             Transaction History
           </TabsTrigger>
+          <TabsTrigger value="reports" className="gap-2">
+            <TrendingUp className="h-4 w-4" />
+            Reports
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="stock">
@@ -211,6 +216,10 @@ export function InventoryDashboard() {
 
         <TabsContent value="history">
           <TransactionHistory />
+        </TabsContent>
+
+        <TabsContent value="reports">
+          <InventoryReports />
         </TabsContent>
       </Tabs>
 

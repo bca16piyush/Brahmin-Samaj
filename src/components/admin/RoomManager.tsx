@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { format, isToday, isTomorrow, addDays } from 'date-fns';
-import { Bed, CalendarCheck, Users, Ban, DollarSign, Plus, Lock, Unlock, Calendar } from 'lucide-react';
+import { Bed, CalendarCheck, Users, Ban, DollarSign, Plus, Lock, Unlock, Calendar, Mail } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +15,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import {
   useRooms,
   useRoomTypes,
@@ -50,6 +52,7 @@ export function RoomManager() {
   const toggleBlock = useToggleRoomBlock();
   const updatePrice = useUpdateRoomTypePrice();
   const createRoom = useCreateRoom();
+  const { toast } = useToast();
 
   const [showAddRoom, setShowAddRoom] = useState(false);
   const [newRoomTypeId, setNewRoomTypeId] = useState('');
@@ -60,6 +63,7 @@ export function RoomManager() {
   const [blockUntil, setBlockUntil] = useState<Date | undefined>();
   const [editingPrice, setEditingPrice] = useState<string | null>(null);
   const [newPrice, setNewPrice] = useState('');
+  const [sendingNotification, setSendingNotification] = useState<string | null>(null);
 
   // Today's arrivals
   const todayArrivals = bookings?.filter(b => 
@@ -79,10 +83,33 @@ export function RoomManager() {
   const pendingBookings = bookings?.filter(b => b.status === 'pending').length || 0;
   const occupiedRooms = bookings?.filter(b => b.status === 'checked_in').length || 0;
 
-  const handleStatusChange = (id: string, status: BookingStatus) => {
+  const handleStatusChange = async (id: string, status: BookingStatus) => {
     updateStatus.mutate({ id, status });
+    
+    // Send email notification for status changes
+    const notificationType = status === 'confirmed' ? 'booking_confirmed' 
+      : status === 'cancelled' ? 'booking_cancelled'
+      : status === 'checked_in' ? 'checked_in'
+      : status === 'checked_out' ? 'checked_out'
+      : null;
+    
+    if (notificationType) {
+      setSendingNotification(id);
+      try {
+        await supabase.functions.invoke('send-room-booking-notification', {
+          body: { type: notificationType, bookingId: id },
+        });
+        toast({
+          title: 'Notification Sent',
+          description: `Email notification sent to guest.`,
+        });
+      } catch (err) {
+        console.error('Failed to send notification:', err);
+      } finally {
+        setSendingNotification(null);
+      }
+    }
   };
-
   const handleBlockRoom = (roomId: string) => {
     toggleBlock.mutate({
       id: roomId,
