@@ -217,7 +217,10 @@ export function BulkWhatsAppMessaging() {
     return message;
   };
 
-  // Send bulk messages
+  // Batch size for API calls (edge function limit is 1000)
+  const BATCH_SIZE = 1000;
+
+  // Send bulk messages with batching support
   const handleSendBulk = async () => {
     if (recipients.length === 0 || !title || !messageTemplate) {
       toast({
@@ -260,37 +263,74 @@ export function BulkWhatsAppMessaging() {
         });
       }
 
-      // Simulate progress while waiting
-      const progressInterval = setInterval(() => {
-        setSendProgress(prev => Math.min(prev + 1, 95));
-      }, (recipients.length * parseInt(delaySeconds) * 1000) / 100);
+      // Split recipients into batches
+      const batches: Recipient[][] = [];
+      for (let i = 0; i < recipients.length; i += BATCH_SIZE) {
+        batches.push(recipients.slice(i, i + BATCH_SIZE));
+      }
 
-      // Send with first attachment for now (WhatsApp API limitation: one media per message)
-      // For multiple attachments, we'll send multiple messages
-      const { data, error } = await supabase.functions.invoke('send-bulk-whatsapp', {
-        body: {
-          recipients,
-          title,
-          messageTemplate,
-          delayMs: parseInt(delaySeconds) * 1000,
-          mediaUrl: mediaUrls[0]?.url,
-          mediaType: mediaUrls[0]?.type,
-          additionalMedia: mediaUrls.slice(1), // Send additional media info for follow-up messages
-        },
-      });
+      let allResults: SendResult[] = [];
+      let totalSent = 0;
+      let totalFailed = 0;
 
-      clearInterval(progressInterval);
-      setSendProgress(100);
+      // Process each batch
+      for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+        const batch = batches[batchIndex];
+        const batchStart = batchIndex * BATCH_SIZE;
+        
+        // Update progress based on batch completion
+        const baseProgress = (batchIndex / batches.length) * 100;
+        setSendProgress(Math.floor(baseProgress));
 
-      if (error) throw error;
+        // Show batch progress
+        if (batches.length > 1) {
+          toast({
+            title: `Processing Batch ${batchIndex + 1}/${batches.length}`,
+            description: `Sending to recipients ${batchStart + 1} - ${batchStart + batch.length}`,
+          });
+        }
 
-      setSendResults(data.results || []);
+        const { data, error } = await supabase.functions.invoke('send-bulk-whatsapp', {
+          body: {
+            recipients: batch,
+            title,
+            messageTemplate,
+            delayMs: parseInt(delaySeconds) * 1000,
+            mediaUrl: mediaUrls[0]?.url,
+            mediaType: mediaUrls[0]?.type,
+            additionalMedia: mediaUrls.slice(1),
+          },
+        });
+
+        if (error) {
+          console.error(`Batch ${batchIndex + 1} error:`, error);
+          // Mark all recipients in this batch as failed
+          batch.forEach(r => {
+            allResults.push({ phone: r.phone, success: false, error: error.message });
+            totalFailed++;
+          });
+        } else {
+          allResults = [...allResults, ...(data.results || [])];
+          totalSent += data.sent || 0;
+          totalFailed += data.failed || 0;
+        }
+
+        // Update progress after batch completion
+        setSendProgress(Math.floor(((batchIndex + 1) / batches.length) * 100));
+
+        // Add a small delay between batches to avoid rate limiting
+        if (batchIndex < batches.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      }
+
+      setSendResults(allResults);
       setShowResults(true);
 
       toast({
         title: 'Bulk Send Complete',
-        description: `Sent: ${data.sent}, Failed: ${data.failed}`,
-        variant: data.failed > 0 ? 'destructive' : 'default',
+        description: `Sent: ${totalSent}, Failed: ${totalFailed}${batches.length > 1 ? ` (${batches.length} batches)` : ''}`,
+        variant: totalFailed > 0 ? 'destructive' : 'default',
       });
     } catch (err) {
       console.error('Bulk send error:', err);
