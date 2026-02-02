@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Send, Upload, FileText, Users, Clock, AlertCircle, CheckCircle, Image, Video, File, X, Paperclip, Eye, Pause, Play, AlertTriangle } from 'lucide-react';
+import { Send, Upload, FileText, Users, Clock, AlertCircle, CheckCircle, Image, Video, File, X, Paperclip, Eye, Pause, Play, AlertTriangle, Plus, UserPlus, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -58,6 +59,9 @@ export function BulkWhatsAppMessaging() {
   const [mediaAttachments, setMediaAttachments] = useState<MediaAttachment[]>([]);
   const [showPreview, setShowPreview] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showManualAddDialog, setShowManualAddDialog] = useState(false);
+  const [showRecipientList, setShowRecipientList] = useState(false);
+  const [manualContacts, setManualContacts] = useState<{ phone: string; name: string }[]>([{ phone: '', name: '' }]);
   const [currentBatch, setCurrentBatch] = useState(0);
   const [totalBatches, setTotalBatches] = useState(0);
   const mediaInputRef = useRef<HTMLInputElement>(null);
@@ -443,6 +447,62 @@ export function BulkWhatsAppMessaging() {
     setSendProgress(0);
     setCsvError(null);
     setMediaAttachments([]);
+    setManualContacts([{ phone: '', name: '' }]);
+  };
+
+  // Manual contact entry functions
+  const addManualContactRow = () => {
+    setManualContacts(prev => [...prev, { phone: '', name: '' }]);
+  };
+
+  const updateManualContact = (index: number, field: 'phone' | 'name', value: string) => {
+    setManualContacts(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
+  };
+
+  const removeManualContactRow = (index: number) => {
+    if (manualContacts.length > 1) {
+      setManualContacts(prev => prev.filter((_, i) => i !== index));
+    }
+  };
+
+  const handleAddManualContacts = () => {
+    const validContacts = manualContacts
+      .filter(c => c.phone.trim().length >= 10)
+      .map(c => ({
+        phone: c.phone.replace(/[^0-9]/g, ''),
+        name: c.name.trim() || undefined,
+      }));
+
+    if (validContacts.length === 0) {
+      toast({
+        title: 'No Valid Contacts',
+        description: 'Please enter at least one valid phone number (10+ digits)',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Add to existing recipients (avoid duplicates)
+    const existingPhones = new Set(recipients.map(r => r.phone));
+    const newContacts = validContacts.filter(c => !existingPhones.has(c.phone));
+    const duplicates = validContacts.length - newContacts.length;
+
+    setRecipients(prev => [...prev, ...newContacts]);
+    setManualContacts([{ phone: '', name: '' }]);
+    setShowManualAddDialog(false);
+
+    toast({
+      title: 'Contacts Added',
+      description: `Added ${newContacts.length} contacts${duplicates > 0 ? ` (${duplicates} duplicates skipped)` : ''}`,
+    });
+  };
+
+  const removeRecipient = (phone: string) => {
+    setRecipients(prev => prev.filter(r => r.phone !== phone));
   };
 
   const availableTags = ['{name}', ...Object.keys(recipients[0]?.customFields || {}).map(k => `{${k}}`)];
@@ -464,20 +524,36 @@ export function BulkWhatsAppMessaging() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* CSV Upload Section */}
+          {/* Recipients Section */}
           <div className="space-y-4">
-            <div className="flex items-center gap-4">
-              <Label className="flex items-center gap-2">
-                <Upload className="h-4 w-4" />
-                Upload Recipients CSV
-              </Label>
-              <Input
-                type="file"
-                accept=".csv"
-                onChange={handleFileUpload}
+            <div className="flex flex-wrap items-center gap-4">
+              {/* CSV Upload */}
+              <div className="flex items-center gap-2">
+                <Label className="flex items-center gap-2 whitespace-nowrap">
+                  <Upload className="h-4 w-4" />
+                  Upload CSV
+                </Label>
+                <Input
+                  type="file"
+                  accept=".csv"
+                  onChange={handleFileUpload}
+                  disabled={isSending}
+                  className="max-w-[200px]"
+                />
+              </div>
+
+              <span className="text-muted-foreground">or</span>
+
+              {/* Manual Add Button */}
+              <Button
+                variant="outline"
+                onClick={() => setShowManualAddDialog(true)}
                 disabled={isSending}
-                className="max-w-xs"
-              />
+                className="gap-2"
+              >
+                <UserPlus className="h-4 w-4" />
+                Add Contacts Manually
+              </Button>
             </div>
 
             {csvError && (
@@ -500,13 +576,22 @@ export function BulkWhatsAppMessaging() {
             </div>
 
             {recipients.length > 0 && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Badge variant="secondary" className="gap-1">
                   <Users className="h-3 w-3" />
                   {recipients.length} Recipients Loaded
                 </Badge>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setShowRecipientList(true)}
+                  className="gap-1"
+                >
+                  <Eye className="h-3 w-3" />
+                  View List
+                </Button>
                 <Button variant="ghost" size="sm" onClick={() => setRecipients([])}>
-                  Clear
+                  Clear All
                 </Button>
               </div>
             )}
@@ -922,6 +1007,130 @@ export function BulkWhatsAppMessaging() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Manual Add Contacts Dialog */}
+      <Dialog open={showManualAddDialog} onOpenChange={setShowManualAddDialog}>
+        <DialogContent className="max-w-lg max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5" />
+              Add Contacts Manually
+            </DialogTitle>
+            <DialogDescription>
+              Enter phone numbers and optional names. Phone should include country code (e.g., 919876543210).
+            </DialogDescription>
+          </DialogHeader>
+
+          <ScrollArea className="max-h-[400px] pr-4">
+            <div className="space-y-3">
+              {manualContacts.map((contact, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <Input
+                    placeholder="Phone (e.g., 919876543210)"
+                    value={contact.phone}
+                    onChange={(e) => updateManualContact(index, 'phone', e.target.value)}
+                    className="flex-1"
+                  />
+                  <Input
+                    placeholder="Name (optional)"
+                    value={contact.name}
+                    onChange={(e) => updateManualContact(index, 'name', e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => removeManualContactRow(index)}
+                    disabled={manualContacts.length === 1}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+
+          <Button
+            type="button"
+            variant="outline"
+            onClick={addManualContactRow}
+            className="gap-2 w-full"
+          >
+            <Plus className="h-4 w-4" />
+            Add Another Contact
+          </Button>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowManualAddDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddManualContacts} className="gap-2">
+              <UserPlus className="h-4 w-4" />
+              Add {manualContacts.filter(c => c.phone.trim().length >= 10).length} Contacts
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Recipient List Dialog */}
+      <Dialog open={showRecipientList} onOpenChange={setShowRecipientList}>
+        <DialogContent className="max-w-2xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Recipient List ({recipients.length})
+            </DialogTitle>
+            <DialogDescription>
+              View and manage all recipients in the list
+            </DialogDescription>
+          </DialogHeader>
+
+          <ScrollArea className="max-h-[400px]">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Phone</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead className="w-[80px]">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {recipients.map((recipient, idx) => (
+                  <TableRow key={idx}>
+                    <TableCell className="font-mono text-sm">{recipient.phone}</TableCell>
+                    <TableCell>{recipient.name || '-'}</TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive"
+                        onClick={() => removeRecipient(recipient.phone)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </ScrollArea>
+
+          <DialogFooter className="flex justify-between sm:justify-between">
+            <Button
+              variant="outline"
+              onClick={() => setShowManualAddDialog(true)}
+              className="gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Add More
+            </Button>
+            <Button onClick={() => setShowRecipientList(false)}>
+              Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 }
