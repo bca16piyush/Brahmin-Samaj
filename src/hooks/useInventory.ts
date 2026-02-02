@@ -249,6 +249,57 @@ export function useCreateStockOut() {
   });
 }
 
+// Fetch stock in history (for reports)
+export function useStockInHistory() {
+  return useQuery({
+    queryKey: ['stock-in-history'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('stock_in')
+        .select(`
+          id,
+          item_id,
+          quantity,
+          supplier,
+          purchase_date,
+          notes,
+          created_at,
+          inventory_items (name, category, unit)
+        `)
+        .order('purchase_date', { ascending: false });
+      
+      if (error) throw error;
+      return data as (StockIn & { inventory_items: { name: string; category: InventoryCategory; unit: string } | null })[];
+    },
+  });
+}
+
+// Fetch stock out history (for reports)
+export function useStockOutHistory() {
+  return useQuery({
+    queryKey: ['stock-out-history'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('stock_out')
+        .select(`
+          id,
+          item_id,
+          quantity,
+          purpose,
+          customer_name,
+          exit_date,
+          notes,
+          created_at,
+          inventory_items (name, category, unit)
+        `)
+        .order('exit_date', { ascending: false });
+      
+      if (error) throw error;
+      return data as (StockOut & { inventory_items: { name: string; category: InventoryCategory; unit: string } | null })[];
+    },
+  });
+}
+
 // Fetch transaction history (combined stock in and out)
 export function useTransactionHistory() {
   return useQuery({
