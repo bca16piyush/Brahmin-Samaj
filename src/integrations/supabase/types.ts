@@ -638,6 +638,154 @@ export type Database = {
         }
         Relationships: []
       }
+      room_bookings: {
+        Row: {
+          admin_notes: string | null
+          check_in_date: string
+          check_out_date: string
+          created_at: string | null
+          guest_names: string[] | null
+          id: string
+          num_guests: number
+          room_id: string
+          special_requests: string | null
+          status: Database["public"]["Enums"]["booking_status"]
+          total_amount: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          check_in_date: string
+          check_out_date: string
+          created_at?: string | null
+          guest_names?: string[] | null
+          id?: string
+          num_guests?: number
+          room_id: string
+          special_requests?: string | null
+          status?: Database["public"]["Enums"]["booking_status"]
+          total_amount?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          admin_notes?: string | null
+          check_in_date?: string
+          check_out_date?: string
+          created_at?: string | null
+          guest_names?: string[] | null
+          id?: string
+          num_guests?: number
+          room_id?: string
+          special_requests?: string | null
+          status?: Database["public"]["Enums"]["booking_status"]
+          total_amount?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "room_bookings_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      room_types: {
+        Row: {
+          amenities: string[] | null
+          capacity: number
+          created_at: string | null
+          description: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean | null
+          name: string
+          price_per_night: number
+          type: Database["public"]["Enums"]["room_type"]
+          updated_at: string | null
+        }
+        Insert: {
+          amenities?: string[] | null
+          capacity?: number
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          name: string
+          price_per_night: number
+          type: Database["public"]["Enums"]["room_type"]
+          updated_at?: string | null
+        }
+        Update: {
+          amenities?: string[] | null
+          capacity?: number
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          name?: string
+          price_per_night?: number
+          type?: Database["public"]["Enums"]["room_type"]
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      rooms: {
+        Row: {
+          blocked_reason: string | null
+          blocked_until: string | null
+          created_at: string | null
+          floor: number | null
+          id: string
+          is_active: boolean | null
+          is_blocked: boolean | null
+          notes: string | null
+          room_number: string
+          room_type_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          blocked_reason?: string | null
+          blocked_until?: string | null
+          created_at?: string | null
+          floor?: number | null
+          id?: string
+          is_active?: boolean | null
+          is_blocked?: boolean | null
+          notes?: string | null
+          room_number: string
+          room_type_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          blocked_reason?: string | null
+          blocked_until?: string | null
+          created_at?: string | null
+          floor?: number | null
+          id?: string
+          is_active?: boolean | null
+          is_blocked?: boolean | null
+          notes?: string | null
+          room_number?: string
+          room_type_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rooms_room_type_id_fkey"
+            columns: ["room_type_id"]
+            isOneToOne: false
+            referencedRelation: "room_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stock_in: {
         Row: {
           created_at: string | null
@@ -885,6 +1033,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      check_room_availability: {
+        Args: {
+          _check_in: string
+          _check_out: string
+          _exclude_booking_id?: string
+          _room_id: string
+        }
+        Returns: boolean
+      }
       get_notification_subscriptions_for_admin: {
         Args: never
         Returns: {
@@ -919,7 +1076,14 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
+      booking_status:
+        | "pending"
+        | "confirmed"
+        | "checked_in"
+        | "checked_out"
+        | "cancelled"
       inventory_category: "puja_materials" | "food_prasad" | "other"
+      room_type: "dormitory" | "standard" | "deluxe" | "ac" | "non_ac"
       verification_status: "none" | "pending" | "verified" | "rejected"
     }
     CompositeTypes: {
@@ -1049,7 +1213,15 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "moderator", "user"],
+      booking_status: [
+        "pending",
+        "confirmed",
+        "checked_in",
+        "checked_out",
+        "cancelled",
+      ],
       inventory_category: ["puja_materials", "food_prasad", "other"],
+      room_type: ["dormitory", "standard", "deluxe", "ac", "non_ac"],
       verification_status: ["none", "pending", "verified", "rejected"],
     },
   },
