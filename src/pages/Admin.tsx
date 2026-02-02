@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Users, UserCheck, Gift, Newspaper, Calendar, User2, LayoutDashboard, CalendarCheck, ClipboardList, UsersRound, Image, FileText, Shield } from 'lucide-react';
+import { Users, UserCheck, Gift, Newspaper, Calendar, User2, LayoutDashboard, CalendarCheck, ClipboardList, UsersRound, Image, FileText, Shield, Package } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
@@ -17,6 +17,7 @@ import { UserManager } from '@/components/admin/UserManager';
 import { GalleryManager } from '@/components/admin/GalleryManager';
 import { AuditLogViewer } from '@/components/admin/AuditLogViewer';
 import { SecurityDashboard } from '@/components/admin/SecurityDashboard';
+import { InventoryDashboard } from '@/components/admin/inventory/InventoryDashboard';
 
 export default function Admin() {
   const { isAdmin, isLoading, isAuthenticated } = useAuth();
@@ -101,6 +102,10 @@ export default function Admin() {
                 <Image className="w-4 h-4" />
                 <span className="hidden sm:inline">Gallery</span>
               </TabsTrigger>
+              <TabsTrigger value="inventory" className="flex items-center gap-2">
+                <Package className="w-4 h-4" />
+                <span className="hidden sm:inline">Inventory</span>
+              </TabsTrigger>
               <TabsTrigger value="security" className="flex items-center gap-2">
                 <Shield className="w-4 h-4" />
                 <span className="hidden sm:inline">Security</span>
@@ -149,6 +154,10 @@ export default function Admin() {
 
             <TabsContent value="gallery">
               <GalleryManager />
+            </TabsContent>
+
+            <TabsContent value="inventory">
+              <InventoryDashboard />
             </TabsContent>
 
             <TabsContent value="security">
