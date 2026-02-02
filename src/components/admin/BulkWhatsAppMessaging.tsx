@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Send, Upload, FileText, Users, Clock, AlertCircle, CheckCircle, Image, Video, File, X, Paperclip, Eye, Pause, Play, AlertTriangle, Plus, UserPlus, Trash2 } from 'lucide-react';
+import { Send, Upload, FileText, Users, Clock, AlertCircle, CheckCircle, Image, Video, File, X, Paperclip, Eye, Pause, Play, AlertTriangle, Plus, UserPlus, Trash2, Calendar, Database } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,11 +14,17 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Switch } from '@/components/ui/switch';
+import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -61,9 +67,22 @@ export function BulkWhatsAppMessaging() {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showManualAddDialog, setShowManualAddDialog] = useState(false);
   const [showRecipientList, setShowRecipientList] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
   const [manualContacts, setManualContacts] = useState<{ phone: string; name: string }[]>([{ phone: '', name: '' }]);
   const [currentBatch, setCurrentBatch] = useState(0);
   const [totalBatches, setTotalBatches] = useState(0);
+  
+  // Scheduling states
+  const [isScheduled, setIsScheduled] = useState(false);
+  const [scheduleDate, setScheduleDate] = useState<Date | undefined>(undefined);
+  const [scheduleTime, setScheduleTime] = useState('10:00');
+  
+  // Import states
+  const [isImporting, setIsImporting] = useState(false);
+  const [importSource, setImportSource] = useState<'verified' | 'event' | null>(null);
+  const [events, setEvents] = useState<{ id: string; title: string; registrations: number }[]>([]);
+  const [selectedEventId, setSelectedEventId] = useState<string>('');
+  
   const mediaInputRef = useRef<HTMLInputElement>(null);
   const pauseRef = useRef(false);
   const abortRef = useRef(false);
@@ -505,6 +524,229 @@ export function BulkWhatsAppMessaging() {
     setRecipients(prev => prev.filter(r => r.phone !== phone));
   };
 
+  // Load events for import
+  const loadEventsForImport = async () => {
+    setIsImporting(true);
+    try {
+      const { data, error } = await supabase
+        .from('events')
+        .select('id, title')
+        .order('event_date', { ascending: false })
+        .limit(50);
+
+      if (error) throw error;
+
+      // Get registration counts
+      const eventsWithCounts = await Promise.all(
+        (data || []).map(async (event) => {
+          const { count } = await supabase
+            .from('event_registrations')
+            .select('*', { count: 'exact', head: true })
+            .eq('event_id', event.id)
+            .eq('status', 'registered');
+          return { ...event, registrations: count || 0 };
+        })
+      );
+
+      setEvents(eventsWithCounts.filter(e => e.registrations > 0));
+    } catch (err) {
+      console.error('Error loading events:', err);
+      toast({
+        title: 'Error',
+        description: 'Failed to load events',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  // Import verified users
+  const importVerifiedUsers = async () => {
+    setIsImporting(true);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('mobile, name')
+        .eq('verification_status', 'verified')
+        .not('mobile', 'is', null);
+
+      if (error) throw error;
+
+      const validContacts = (data || [])
+        .filter(p => p.mobile && p.mobile.length >= 10)
+        .map(p => ({
+          phone: p.mobile.replace(/[^0-9]/g, ''),
+          name: p.name || undefined,
+        }));
+
+      // Merge with existing, avoiding duplicates
+      const existingPhones = new Set(recipients.map(r => r.phone));
+      const newContacts = validContacts.filter(c => !existingPhones.has(c.phone));
+
+      setRecipients(prev => [...prev, ...newContacts]);
+      setShowImportDialog(false);
+
+      toast({
+        title: 'Import Successful',
+        description: `Imported ${newContacts.length} verified users`,
+      });
+    } catch (err) {
+      console.error('Error importing users:', err);
+      toast({
+        title: 'Import Failed',
+        description: 'Failed to import verified users',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  // Import event registrants
+  const importEventRegistrants = async (eventId: string) => {
+    if (!eventId) return;
+    setIsImporting(true);
+    try {
+      const { data, error } = await supabase
+        .from('event_registrations')
+        .select('user_id')
+        .eq('event_id', eventId)
+        .eq('status', 'registered');
+
+      if (error) throw error;
+
+      const userIds = (data || []).map(r => r.user_id);
+      
+      if (userIds.length === 0) {
+        toast({
+          title: 'No Registrants',
+          description: 'No registrants found for this event',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Fetch profiles for these users
+      const { data: profiles, error: profileError } = await supabase
+        .from('profiles')
+        .select('mobile, name')
+        .in('id', userIds)
+        .not('mobile', 'is', null);
+
+      if (profileError) throw profileError;
+
+      const validContacts = (profiles || [])
+        .filter(p => p.mobile && p.mobile.length >= 10)
+        .map(p => ({
+          phone: p.mobile.replace(/[^0-9]/g, ''),
+          name: p.name || undefined,
+        }));
+
+      const existingPhones = new Set(recipients.map(r => r.phone));
+      const newContacts = validContacts.filter(c => !existingPhones.has(c.phone));
+
+      setRecipients(prev => [...prev, ...newContacts]);
+      setShowImportDialog(false);
+      setSelectedEventId('');
+
+      toast({
+        title: 'Import Successful',
+        description: `Imported ${newContacts.length} event registrants`,
+      });
+    } catch (err) {
+      console.error('Error importing registrants:', err);
+      toast({
+        title: 'Import Failed',
+        description: 'Failed to import event registrants',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  // Schedule message
+  const handleScheduleMessage = async () => {
+    if (!scheduleDate || !scheduleTime) {
+      toast({
+        title: 'Missing Schedule',
+        description: 'Please select a date and time',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const [hours, minutes] = scheduleTime.split(':').map(Number);
+    const scheduledAt = new Date(scheduleDate);
+    scheduledAt.setHours(hours, minutes, 0, 0);
+
+    if (scheduledAt <= new Date()) {
+      toast({
+        title: 'Invalid Time',
+        description: 'Scheduled time must be in the future',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsSending(true);
+    try {
+      // Upload media first if any
+      const mediaUrls: { url: string; type: string }[] = [];
+      for (const attachment of mediaAttachments) {
+        const fileName = `bulk-whatsapp/${Date.now()}-${attachment.file.name}`;
+        const { error: uploadError } = await supabase.storage
+          .from('gallery')
+          .upload(fileName, attachment.file);
+
+        if (uploadError) throw new Error('Failed to upload media');
+
+        const { data: publicUrl } = supabase.storage
+          .from('gallery')
+          .getPublicUrl(fileName);
+
+        mediaUrls.push({ url: publicUrl.publicUrl, type: attachment.type });
+      }
+
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user?.id) throw new Error('Not authenticated');
+
+      const { error } = await supabase
+        .from('scheduled_whatsapp_messages')
+        .insert({
+          title,
+          message_template: messageTemplate,
+          recipients: JSON.parse(JSON.stringify(recipients)),
+          media_url: mediaUrls[0]?.url || null,
+          media_type: mediaUrls[0]?.type || null,
+          additional_media: mediaUrls.slice(1),
+          scheduled_at: scheduledAt.toISOString(),
+          delay_ms: parseInt(delaySeconds) * 1000,
+          created_by: userData.user.id,
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Message Scheduled',
+        description: `Will be sent on ${format(scheduledAt, 'PPP')} at ${scheduleTime}`,
+      });
+
+      // Reset form
+      handleReset();
+    } catch (err) {
+      console.error('Schedule error:', err);
+      toast({
+        title: 'Scheduling Failed',
+        description: err instanceof Error ? err.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSending(false);
+    }
+  };
+
   const availableTags = ['{name}', ...Object.keys(recipients[0]?.customFields || {}).map(k => `{${k}}`)];
 
   return (
@@ -552,7 +794,21 @@ export function BulkWhatsAppMessaging() {
                 className="gap-2"
               >
                 <UserPlus className="h-4 w-4" />
-                Add Contacts Manually
+                Add Manually
+              </Button>
+
+              {/* Import from Database Button */}
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowImportDialog(true);
+                  loadEventsForImport();
+                }}
+                disabled={isSending}
+                className="gap-2"
+              >
+                <Database className="h-4 w-4" />
+                Import from Database
               </Button>
             </div>
 
@@ -803,6 +1059,72 @@ export function BulkWhatsAppMessaging() {
             </div>
           )}
 
+          {/* Scheduling Section */}
+          <div className="space-y-4 border-t pt-4">
+            <div className="flex items-center justify-between">
+              <Label className="flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                Schedule for Later
+              </Label>
+              <Switch
+                checked={isScheduled}
+                onCheckedChange={setIsScheduled}
+                disabled={isSending}
+              />
+            </div>
+
+            {isScheduled && (
+              <div className="flex flex-wrap gap-4 bg-muted/50 p-4 rounded-lg">
+                <div className="space-y-2">
+                  <Label className="text-sm">Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-[200px] justify-start text-left font-normal",
+                          !scheduleDate && "text-muted-foreground"
+                        )}
+                      >
+                        <Calendar className="mr-2 h-4 w-4" />
+                        {scheduleDate ? format(scheduleDate, "PPP") : "Pick a date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarComponent
+                        mode="single"
+                        selected={scheduleDate}
+                        onSelect={setScheduleDate}
+                        disabled={(date) => date < new Date()}
+                        initialFocus
+                        className="p-3 pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-sm">Time</Label>
+                  <Input
+                    type="time"
+                    value={scheduleTime}
+                    onChange={(e) => setScheduleTime(e.target.value)}
+                    className="w-[140px]"
+                  />
+                </div>
+
+                {scheduleDate && scheduleTime && (
+                  <div className="flex items-end">
+                    <Badge variant="secondary" className="gap-1">
+                      <Clock className="h-3 w-3" />
+                      {format(scheduleDate, "MMM d")} at {scheduleTime}
+                    </Badge>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* Actions */}
           <div className="flex flex-wrap gap-4 border-t pt-4">
             <Button
@@ -814,14 +1136,27 @@ export function BulkWhatsAppMessaging() {
               <Eye className="h-4 w-4" />
               Preview Message
             </Button>
-            <Button
-              onClick={initiatesSend}
-              disabled={isSending || recipients.length === 0 || !title || !messageTemplate}
-              className="gap-2"
-            >
-              <Send className="h-4 w-4" />
-              {isSending ? 'Sending...' : `Send to ${recipients.length} Recipients`}
-            </Button>
+            
+            {isScheduled ? (
+              <Button
+                onClick={handleScheduleMessage}
+                disabled={isSending || recipients.length === 0 || !title || !messageTemplate || !scheduleDate}
+                className="gap-2"
+              >
+                <Calendar className="h-4 w-4" />
+                {isSending ? 'Scheduling...' : `Schedule for ${recipients.length} Recipients`}
+              </Button>
+            ) : (
+              <Button
+                onClick={initiatesSend}
+                disabled={isSending || recipients.length === 0 || !title || !messageTemplate}
+                className="gap-2"
+              >
+                <Send className="h-4 w-4" />
+                {isSending ? 'Sending...' : `Send to ${recipients.length} Recipients`}
+              </Button>
+            )}
+            
             <Button variant="outline" onClick={handleReset} disabled={isSending}>
               Reset All
             </Button>
@@ -1127,6 +1462,103 @@ export function BulkWhatsAppMessaging() {
             </Button>
             <Button onClick={() => setShowRecipientList(false)}>
               Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import from Database Dialog */}
+      <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Database className="h-5 w-5" />
+              Import Contacts from Database
+            </DialogTitle>
+            <DialogDescription>
+              Select a source to import contacts from your database
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Import verified users */}
+            <div 
+              className="border rounded-lg p-4 cursor-pointer hover:bg-muted/50 transition-colors"
+              onClick={() => !isImporting && importVerifiedUsers()}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-full bg-green-500/10">
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                  </div>
+                  <div>
+                    <h4 className="font-medium">Verified Users</h4>
+                    <p className="text-sm text-muted-foreground">
+                      All community members with verified status
+                    </p>
+                  </div>
+                </div>
+                {isImporting ? (
+                  <span className="text-sm text-muted-foreground">Loading...</span>
+                ) : (
+                  <Badge variant="secondary">Import</Badge>
+                )}
+              </div>
+            </div>
+
+            {/* Import from event */}
+            <div className="border rounded-lg p-4">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 rounded-full bg-primary/10">
+                  <Calendar className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <h4 className="font-medium">Event Registrants</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Import from a specific event
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <Select 
+                  value={selectedEventId} 
+                  onValueChange={setSelectedEventId}
+                  disabled={isImporting}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select an event" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {events.length === 0 ? (
+                      <SelectItem value="none" disabled>
+                        {isImporting ? 'Loading...' : 'No events with registrations'}
+                      </SelectItem>
+                    ) : (
+                      events.map((event) => (
+                        <SelectItem key={event.id} value={event.id}>
+                          {event.title} ({event.registrations} registrants)
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+
+                <Button
+                  onClick={() => importEventRegistrants(selectedEventId)}
+                  disabled={!selectedEventId || isImporting}
+                  className="w-full gap-2"
+                >
+                  <Users className="h-4 w-4" />
+                  {isImporting ? 'Importing...' : 'Import Registrants'}
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowImportDialog(false)}>
+              Cancel
             </Button>
           </DialogFooter>
         </DialogContent>

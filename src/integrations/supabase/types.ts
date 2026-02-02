@@ -786,6 +786,57 @@ export type Database = {
           },
         ]
       }
+      scheduled_whatsapp_messages: {
+        Row: {
+          additional_media: Json | null
+          created_at: string | null
+          created_by: string
+          delay_ms: number | null
+          executed_at: string | null
+          id: string
+          media_type: string | null
+          media_url: string | null
+          message_template: string
+          recipients: Json
+          result: Json | null
+          scheduled_at: string
+          status: string
+          title: string
+        }
+        Insert: {
+          additional_media?: Json | null
+          created_at?: string | null
+          created_by: string
+          delay_ms?: number | null
+          executed_at?: string | null
+          id?: string
+          media_type?: string | null
+          media_url?: string | null
+          message_template: string
+          recipients: Json
+          result?: Json | null
+          scheduled_at: string
+          status?: string
+          title: string
+        }
+        Update: {
+          additional_media?: Json | null
+          created_at?: string | null
+          created_by?: string
+          delay_ms?: number | null
+          executed_at?: string | null
+          id?: string
+          media_type?: string | null
+          media_url?: string | null
+          message_template?: string
+          recipients?: Json
+          result?: Json | null
+          scheduled_at?: string
+          status?: string
+          title?: string
+        }
+        Relationships: []
+      }
       stock_in: {
         Row: {
           created_at: string | null
