@@ -17,6 +17,8 @@ const bulkMessageSchema = z.object({
   messageTemplate: z.string().min(1, 'Message template required').max(2000, 'Message too long'),
   title: z.string().min(1, 'Title required').max(200, 'Title too long'),
   delayMs: z.number().min(1000).max(60000).optional().default(5000), // 1-60 seconds delay, default 5s
+  mediaUrl: z.string().url().optional(),
+  mediaType: z.enum(['image', 'video', 'document', 'pdf']).optional(),
 });
 
 // Helper to replace personalization tags in message
@@ -119,9 +121,9 @@ serve(async (req) => {
       );
     }
 
-    const { recipients, messageTemplate, title, delayMs } = validation.data;
+    const { recipients, messageTemplate, title, delayMs, mediaUrl, mediaType } = validation.data;
 
-    console.log(`Starting bulk WhatsApp: ${recipients.length} recipients, ${delayMs}ms delay`);
+    console.log(`Starting bulk WhatsApp: ${recipients.length} recipients, ${delayMs}ms delay, media: ${mediaType || 'none'}`);
 
     // Log audit event at start
     await supabase.from('admin_audit_logs').insert({
@@ -133,6 +135,8 @@ serve(async (req) => {
         title,
         recipient_count: recipients.length,
         delay_ms: delayMs,
+        has_media: !!mediaUrl,
+        media_type: mediaType,
       },
       ip_address: req.headers.get('x-forwarded-for') || 'unknown',
       user_agent: req.headers.get('user-agent') || 'unknown',
@@ -143,12 +147,69 @@ serve(async (req) => {
     let successful = 0;
     let failed = 0;
 
+    // Helper function to build message payload
+    const buildMessagePayload = (formattedPhone: string, personalizedMessage: string) => {
+      const basePayload = {
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: formattedPhone,
+      };
+
+      // If media is attached, send as media message with caption
+      if (mediaUrl && mediaType) {
+        const whatsappMediaType = mediaType === 'pdf' ? 'document' : mediaType;
+        
+        if (whatsappMediaType === 'image') {
+          return {
+            ...basePayload,
+            type: 'image',
+            image: {
+              link: mediaUrl,
+              caption: `*${title}*\n\n${personalizedMessage}`,
+            },
+          };
+        } else if (whatsappMediaType === 'video') {
+          return {
+            ...basePayload,
+            type: 'video',
+            video: {
+              link: mediaUrl,
+              caption: `*${title}*\n\n${personalizedMessage}`,
+            },
+          };
+        } else {
+          // document or pdf
+          return {
+            ...basePayload,
+            type: 'document',
+            document: {
+              link: mediaUrl,
+              caption: `*${title}*\n\n${personalizedMessage}`,
+              filename: mediaUrl.split('/').pop() || 'document',
+            },
+          };
+        }
+      }
+
+      // Default text message
+      return {
+        ...basePayload,
+        type: 'text',
+        text: {
+          preview_url: false,
+          body: `*${title}*\n\n${personalizedMessage}`,
+        },
+      };
+    };
+
     for (let i = 0; i < recipients.length; i++) {
       const recipient = recipients[i];
       const formattedPhone = recipient.phone.replace(/[^0-9]/g, '');
       const personalizedMessage = personalizeMessage(messageTemplate, recipient);
 
       try {
+        const messagePayload = buildMessagePayload(formattedPhone, personalizedMessage);
+        
         const response = await fetch(
           `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
           {
@@ -157,16 +218,7 @@ serve(async (req) => {
               'Authorization': `Bearer ${whatsappToken}`,
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-              messaging_product: 'whatsapp',
-              recipient_type: 'individual',
-              to: formattedPhone,
-              type: 'text',
-              text: {
-                preview_url: false,
-                body: `*${title}*\n\n${personalizedMessage}`,
-              },
-            }),
+            body: JSON.stringify(messagePayload),
           }
         );
 
