@@ -47,6 +47,13 @@ function personalizeMessage(template: string, recipient: { name?: string; custom
   return message;
 }
 
+// Helper to mask phone numbers for logging (show only last 4 digits)
+function maskPhone(phone: string): string {
+  const cleaned = phone.replace(/[^0-9]/g, '');
+  if (cleaned.length <= 4) return '****';
+  return '****' + cleaned.slice(-4);
+}
+
 // Helper to delay execution
 function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -256,7 +263,7 @@ serve(async (req) => {
         if (response.ok) {
           results.push({ phone: recipient.phone, success: true });
           successful++;
-          console.log(`[${i + 1}/${recipients.length}] Sent to ${formattedPhone}`);
+          console.log(`[${i + 1}/${recipients.length}] Sent to ${maskPhone(formattedPhone)}`);
 
           // Send additional media as follow-up messages
           if (additionalMedia && additionalMedia.length > 0) {
@@ -277,9 +284,9 @@ serve(async (req) => {
               );
 
               if (!additionalResponse.ok) {
-                console.error(`[${i + 1}/${recipients.length}] Additional media ${j + 1} failed for ${formattedPhone}`);
+                console.error(`[${i + 1}/${recipients.length}] Additional media ${j + 1} failed for ${maskPhone(formattedPhone)}`);
               } else {
-                console.log(`[${i + 1}/${recipients.length}] Additional media ${j + 1} sent to ${formattedPhone}`);
+                console.log(`[${i + 1}/${recipients.length}] Additional media ${j + 1} sent to ${maskPhone(formattedPhone)}`);
               }
             }
           }
@@ -291,13 +298,13 @@ serve(async (req) => {
             error: errorData.error?.message || 'Unknown error' 
           });
           failed++;
-          console.error(`[${i + 1}/${recipients.length}] Failed ${formattedPhone}:`, errorData);
+          console.error(`[${i + 1}/${recipients.length}] Failed ${maskPhone(formattedPhone)}:`, { error: errorData.error?.message || 'Unknown error' });
         }
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : 'Unknown error';
         results.push({ phone: recipient.phone, success: false, error: errorMsg });
         failed++;
-        console.error(`[${i + 1}/${recipients.length}] Error ${formattedPhone}:`, err);
+        console.error(`[${i + 1}/${recipients.length}] Error ${maskPhone(formattedPhone)}:`, err instanceof Error ? err.message : 'Unknown error');
       }
 
       // Add delay between messages (except for the last one)
