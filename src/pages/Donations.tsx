@@ -22,11 +22,13 @@ const dropOffLocations = [
 ];
 
 const bankDetails = {
-  bankName: 'Kotak Mahindra Bank',
-  accountName: 'Brahmin Samaj Trust',
-  accountNumber: '1234567890123456',
-  ifsc: 'KKBK0001234',
-  upiId: 'brahminsamaj@kotak',
+  bankName: 'Indian Overseas Bank',
+  accountName: 'M/S SRI PRAKHAR PAROPKAR MISSION TRUST',
+  accountNumber: '16920100001061',
+  ifsc: 'IOBA0001692',
+  upiId: 'S9412071823@IOB',
+  branch: 'Haridwar (1692), Near Shanti Kunj, Bhupatwala',
+  micr: '249020004',
 };
 
 export default function Donations() {
@@ -196,12 +198,14 @@ const [inKindForm, setInKindForm] = useState({
                         { label: 'Account Name', value: bankDetails.accountName },
                         { label: 'Account Number', value: bankDetails.accountNumber },
                         { label: 'IFSC Code', value: bankDetails.ifsc },
+                        { label: 'Branch', value: bankDetails.branch },
+                        { label: 'MICR', value: bankDetails.micr },
                         { label: 'UPI ID', value: bankDetails.upiId },
                       ].map(({ label, value }) => (
                         <div key={label} className="flex items-center justify-between">
                           <div>
                             <p className="text-xs text-muted-foreground">{label}</p>
-                            <p className="font-medium font-mono">{value}</p>
+                            <p className="font-medium font-mono text-sm">{value}</p>
                           </div>
                           <Button
                             variant="ghost"
@@ -219,22 +223,17 @@ const [inKindForm, setInKindForm] = useState({
                       ))}
                     </div>
 
-                    {/* QR Code Placeholder */}
+                    {/* QR Code */}
                     <div className="text-center pt-6 border-t border-border">
                       <p className="text-sm text-muted-foreground mb-4">Scan to pay via UPI</p>
-                      <div className="w-48 h-48 bg-muted rounded-xl mx-auto flex items-center justify-center">
-                        <div className="text-center">
-                          <div className="w-32 h-32 bg-foreground/10 rounded-lg grid grid-cols-5 gap-0.5 p-2">
-                            {Array.from({ length: 25 }).map((_, i) => (
-                              <div
-                                key={i}
-                                className={`rounded-sm ${Math.random() > 0.5 ? 'bg-foreground' : 'bg-transparent'}`}
-                              />
-                            ))}
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-2">UPI QR Code</p>
-                        </div>
+                      <div className="flex justify-center">
+                        <img 
+                          src="/images/upi-qr-code.png" 
+                          alt="UPI QR Code for Sri Prakhar Paropkar Mission Trust"
+                          className="w-48 h-48 rounded-xl border border-border object-contain bg-white p-2"
+                        />
                       </div>
+                      <p className="text-xs text-muted-foreground mt-2">{bankDetails.upiId}</p>
                     </div>
                   </div>
                 </div>
