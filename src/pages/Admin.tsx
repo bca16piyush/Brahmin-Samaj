@@ -20,40 +20,38 @@ import { SecurityDashboard } from '@/components/admin/SecurityDashboard';
 import { InventoryDashboard } from '@/components/admin/inventory/InventoryDashboard';
 import { RoomManager } from '@/components/admin/RoomManager';
 import { BulkWhatsAppMessaging } from '@/components/admin/BulkWhatsAppMessaging';
-
 export default function Admin() {
-  const { isAdmin, isLoading, isAuthenticated } = useAuth();
+  const {
+    isAdmin,
+    isLoading,
+    isAuthenticated
+  } = useAuth();
   const navigate = useNavigate();
-
   useEffect(() => {
     if (!isLoading && (!isAuthenticated || !isAdmin)) {
       navigate('/');
     }
   }, [isAdmin, isLoading, isAuthenticated, navigate]);
-
   if (isLoading) {
-    return (
-      <Layout>
+    return <Layout>
         <div className="min-h-screen flex items-center justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
-      </Layout>
-    );
+      </Layout>;
   }
-
   if (!isAdmin) {
     return null;
   }
-
-  return (
-    <Layout>
+  return <Layout>
       <section className="py-8 lg:py-12">
         <div className="container mx-auto px-4">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-8"
-          >
+          <motion.div initial={{
+          opacity: 0,
+          y: 20
+        }} animate={{
+          opacity: 1,
+          y: 0
+        }} className="mb-8">
             <h1 className="font-heading text-3xl md:text-4xl font-bold text-foreground mb-2">
               Admin Dashboard
             </h1>
@@ -78,7 +76,7 @@ export default function Admin() {
               </TabsTrigger>
               <TabsTrigger value="pandits" className="flex items-center gap-2">
                 <User2 className="w-4 h-4" />
-                <span className="hidden sm:inline">Pandits</span>
+                <span className="hidden sm:inline">Brahmin</span>
               </TabsTrigger>
               <TabsTrigger value="bookings" className="flex items-center gap-2">
                 <CalendarCheck className="w-4 h-4" />
@@ -188,6 +186,5 @@ export default function Admin() {
           </Tabs>
         </div>
       </section>
-    </Layout>
-  );
+    </Layout>;
 }
