@@ -9,9 +9,9 @@ const navLinks = [
   { name: 'Home', href: '/' },
   { name: 'About', href: '/about' },
   { name: 'Brahmin', href: '/panditji' },
-  { name: 'Rooms', href: '/rooms' },
   { name: 'Gallery', href: '/gallery' },
   { name: 'Yagyas', href: '/yagyas' },
+  { name: 'Past Event Live', href: '/past-event-live' },
   { name: 'Live', href: '/live' },
   { name: 'Donations', href: '/donations' },
 ];

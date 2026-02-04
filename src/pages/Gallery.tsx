@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Download, Lock, Search, ZoomIn, Calendar, Loader2 } from 'lucide-react';
+import { Download, Lock, Search, ZoomIn, Calendar, Loader2, Play, Video } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,6 +17,8 @@ interface GalleryImage {
   title: string;
   description: string | null;
   image_url: string;
+  video_url: string | null;
+  media_type: string | null;
   event_id: string | null;
   event_name: string | null;
   event_date: string | null;
@@ -71,6 +73,28 @@ export default function Gallery() {
       return `${url}?width=400&height=300&resize=cover`;
     }
     return url;
+  };
+
+  // Get video embed URL
+  const getVideoEmbedUrl = (url: string) => {
+    const youtubeMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]+)/);
+    if (youtubeMatch) {
+      return `https://www.youtube.com/embed/${youtubeMatch[1]}?autoplay=1`;
+    }
+    const vimeoMatch = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+    if (vimeoMatch) {
+      return `https://player.vimeo.com/video/${vimeoMatch[1]}?autoplay=1`;
+    }
+    return url;
+  };
+
+  // Get video thumbnail
+  const getVideoThumbnail = (url: string) => {
+    const youtubeMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]+)/);
+    if (youtubeMatch) {
+      return `https://img.youtube.com/vi/${youtubeMatch[1]}/maxresdefault.jpg`;
+    }
+    return null;
   };
 
   // Locked state for non-logged-in users
@@ -244,33 +268,50 @@ export default function Gallery() {
           {/* Gallery Grid */}
           {!isLoading && (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6">
-              {filteredImages.map((image, index) => (
-                <motion.div
-                  key={image.id}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: index * 0.05 }}
-                  className="group relative aspect-[4/3] rounded-xl overflow-hidden cursor-pointer"
-                  onClick={() => setSelectedImage(image)}
-                >
-                  <img
-                    src={getThumbnailUrl(image.image_url)}
-                    alt={image.title}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                    loading="lazy"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-maroon/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  <div className="absolute bottom-0 left-0 right-0 p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
-                    <p className="text-xs text-gold mb-1">{image.event_name || image.category || 'Gallery'}</p>
-                    <p className="text-sm font-medium text-primary-foreground">{image.title}</p>
-                  </div>
-                  <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <div className="bg-background/90 rounded-full p-2">
-                      <ZoomIn className="w-4 h-4 text-foreground" />
+              {filteredImages.map((image, index) => {
+                const isVideo = image.media_type === 'video' && image.video_url;
+                const thumbnailUrl = isVideo 
+                  ? getVideoThumbnail(image.video_url!) || image.image_url 
+                  : getThumbnailUrl(image.image_url);
+                
+                return (
+                  <motion.div
+                    key={image.id}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: index * 0.05 }}
+                    className="group relative aspect-[4/3] rounded-xl overflow-hidden cursor-pointer"
+                    onClick={() => setSelectedImage(image)}
+                  >
+                    <img
+                      src={thumbnailUrl}
+                      alt={image.title}
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                      loading="lazy"
+                    />
+                    {isVideo && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="w-14 h-14 rounded-full bg-primary/90 flex items-center justify-center shadow-lg">
+                          <Play className="w-6 h-6 text-primary-foreground ml-1" />
+                        </div>
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-maroon/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    <div className="absolute bottom-0 left-0 right-0 p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
+                      <div className="flex items-center gap-2 mb-1">
+                        {isVideo && <Video className="w-3 h-3 text-gold" />}
+                        <p className="text-xs text-gold">{image.event_name || image.category || 'Gallery'}</p>
+                      </div>
+                      <p className="text-sm font-medium text-primary-foreground">{image.title}</p>
                     </div>
-                  </div>
-                </motion.div>
-              ))}
+                    <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="bg-background/90 rounded-full p-2">
+                        {isVideo ? <Play className="w-4 h-4 text-foreground" /> : <ZoomIn className="w-4 h-4 text-foreground" />}
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
             </div>
           )}
 
@@ -293,11 +334,23 @@ export default function Gallery() {
         <DialogContent className="max-w-4xl p-0 overflow-hidden">
           {selectedImage && (
             <div className="relative">
-              <img
-                src={selectedImage.image_url}
-                alt={selectedImage.title}
-                className="w-full h-auto max-h-[80vh] object-contain bg-black"
-              />
+              {selectedImage.media_type === 'video' && selectedImage.video_url ? (
+                <div className="aspect-video bg-black">
+                  <iframe
+                    src={getVideoEmbedUrl(selectedImage.video_url)}
+                    title={selectedImage.title}
+                    className="w-full h-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                </div>
+              ) : (
+                <img
+                  src={selectedImage.image_url}
+                  alt={selectedImage.title}
+                  className="w-full h-auto max-h-[80vh] object-contain bg-black"
+                />
+              )}
               <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-maroon to-transparent">
                 <div className="flex items-center gap-2 mb-1">
                   <Calendar className="w-3 h-3 text-gold" />
@@ -316,7 +369,7 @@ export default function Gallery() {
                     {format(new Date(selectedImage.event_date), 'MMMM d, yyyy')}
                   </p>
                 )}
-                {isVerified && (
+                {isVerified && selectedImage.media_type !== 'video' && (
                   <Button 
                     variant="hero" 
                     size="sm" 

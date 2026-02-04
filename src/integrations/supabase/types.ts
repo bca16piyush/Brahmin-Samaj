@@ -159,7 +159,9 @@ export type Database = {
           id: string
           image_url: string
           is_public: boolean | null
+          media_type: string | null
           title: string
+          video_url: string | null
         }
         Insert: {
           category?: string | null
@@ -171,7 +173,9 @@ export type Database = {
           id?: string
           image_url: string
           is_public?: boolean | null
+          media_type?: string | null
           title: string
+          video_url?: string | null
         }
         Update: {
           category?: string | null
@@ -183,7 +187,9 @@ export type Database = {
           id?: string
           image_url?: string
           is_public?: boolean | null
+          media_type?: string | null
           title?: string
+          video_url?: string | null
         }
         Relationships: [
           {
@@ -556,6 +562,62 @@ export type Database = {
           whatsapp?: string | null
         }
         Relationships: []
+      }
+      past_event_videos: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          display_order: number | null
+          event_date: string | null
+          event_id: string | null
+          event_name: string | null
+          id: string
+          is_published: boolean | null
+          thumbnail_url: string | null
+          title: string
+          updated_at: string | null
+          video_url: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          display_order?: number | null
+          event_date?: string | null
+          event_id?: string | null
+          event_name?: string | null
+          id?: string
+          is_published?: boolean | null
+          thumbnail_url?: string | null
+          title: string
+          updated_at?: string | null
+          video_url: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          display_order?: number | null
+          event_date?: string | null
+          event_id?: string | null
+          event_name?: string | null
+          id?: string
+          is_published?: boolean | null
+          thumbnail_url?: string | null
+          title?: string
+          updated_at?: string | null
+          video_url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "past_event_videos_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
