@@ -21,6 +21,8 @@ interface GalleryImage {
   title: string;
   description: string | null;
   image_url: string;
+  video_url: string | null;
+  media_type: string | null;
   event_id: string | null;
   event_name: string | null;
   event_date: string | null;
@@ -43,6 +45,8 @@ export function GalleryManager() {
     event_id: '',
     category: '',
     is_public: true,
+    media_type: 'image' as 'image' | 'video',
+    video_url: '',
   });
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -119,6 +123,8 @@ export function GalleryManager() {
               title: uploadForm.title || file.name.replace(/\.[^/.]+$/, ''),
               description: uploadForm.description || null,
               image_url: urlData.publicUrl,
+              video_url: null,
+              media_type: 'image',
               event_id: eventId || null,
               event_name: selectedEvent?.title || null,
               event_date: selectedEvent?.event_date ? format(new Date(selectedEvent.event_date), 'yyyy-MM-dd') : null,
@@ -145,7 +151,7 @@ export function GalleryManager() {
       queryClient.invalidateQueries({ queryKey: ['admin-gallery-images'] });
       setShowUploadDialog(false);
       setSelectedFiles([]);
-      setUploadForm({ title: '', description: '', event_id: '', category: '', is_public: true });
+      setUploadForm({ title: '', description: '', event_id: '', category: '', is_public: true, media_type: 'image', video_url: '' });
       toast({
         title: 'Upload Complete',
         description: `${results.success} images uploaded, ${results.failed} failed.`,
@@ -160,6 +166,53 @@ export function GalleryManager() {
     },
     onSettled: () => {
       setIsUploading(false);
+    },
+  });
+
+  // Add video mutation
+  const addVideo = useMutation({
+    mutationFn: async () => {
+      const selectedEvent = events?.find(e => e.id === uploadForm.event_id);
+      const eventId = uploadForm.event_id === 'none' ? null : uploadForm.event_id;
+      
+      // Get YouTube thumbnail
+      const youtubeMatch = uploadForm.video_url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]+)/);
+      const thumbnailUrl = youtubeMatch 
+        ? `https://img.youtube.com/vi/${youtubeMatch[1]}/maxresdefault.jpg`
+        : '';
+
+      const { error } = await supabase
+        .from('gallery')
+        .insert({
+          title: uploadForm.title,
+          description: uploadForm.description || null,
+          image_url: thumbnailUrl || '/placeholder.svg',
+          video_url: uploadForm.video_url,
+          media_type: 'video',
+          event_id: eventId || null,
+          event_name: selectedEvent?.title || null,
+          event_date: selectedEvent?.event_date ? format(new Date(selectedEvent.event_date), 'yyyy-MM-dd') : null,
+          category: uploadForm.category || null,
+          is_public: uploadForm.is_public,
+        });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-gallery-images'] });
+      setShowUploadDialog(false);
+      setUploadForm({ title: '', description: '', event_id: '', category: '', is_public: true, media_type: 'image', video_url: '' });
+      toast({
+        title: 'Video Added',
+        description: 'The video has been added to the gallery.',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
     },
   });
 
@@ -227,9 +280,14 @@ export function GalleryManager() {
   };
 
   const handleUpload = async () => {
-    if (selectedFiles.length === 0) return;
-    setIsUploading(true);
-    uploadImages.mutate(selectedFiles);
+    if (uploadForm.media_type === 'video') {
+      if (!uploadForm.video_url || !uploadForm.title) return;
+      addVideo.mutate();
+    } else {
+      if (selectedFiles.length === 0) return;
+      setIsUploading(true);
+      uploadImages.mutate(selectedFiles);
+    }
   };
 
   const filteredImages = images?.filter(img => {
@@ -239,9 +297,11 @@ export function GalleryManager() {
     return matchesSearch && matchesEvent;
   });
 
-  const totalImages = images?.length || 0;
+  const totalImages = images?.filter(i => i.media_type !== 'video').length || 0;
+  const totalVideos = images?.filter(i => i.media_type === 'video').length || 0;
+  const totalAll = images?.length || 0;
   const publicImages = images?.filter(i => i.is_public).length || 0;
-  const privateImages = totalImages - publicImages;
+  const privateImages = totalAll - publicImages;
   const uniqueEvents = new Set(images?.map(i => i.event_id).filter(Boolean)).size;
 
   return (
@@ -257,9 +317,42 @@ export function GalleryManager() {
           </DialogTrigger>
           <DialogContent className="max-w-lg">
             <DialogHeader>
-              <DialogTitle>Upload Gallery Images</DialogTitle>
+              <DialogTitle>Add to Gallery</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 mt-4">
+              {/* Media Type Toggle */}
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant={uploadForm.media_type === 'image' ? 'default' : 'outline'}
+                  onClick={() => setUploadForm({ ...uploadForm, media_type: 'image', video_url: '' })}
+                  className="flex-1"
+                >
+                  <Image className="w-4 h-4 mr-2" />
+                  Images
+                </Button>
+                <Button
+                  type="button"
+                  variant={uploadForm.media_type === 'video' ? 'default' : 'outline'}
+                  onClick={() => { setUploadForm({ ...uploadForm, media_type: 'video' }); setSelectedFiles([]); }}
+                  className="flex-1"
+                >
+                  <Upload className="w-4 h-4 mr-2" />
+                  Video URL
+                </Button>
+              </div>
+
+              {uploadForm.media_type === 'video' && (
+                <div className="space-y-2">
+                  <Label>Video URL * (YouTube/Vimeo)</Label>
+                  <Input
+                    value={uploadForm.video_url}
+                    onChange={(e) => setUploadForm({ ...uploadForm, video_url: e.target.value })}
+                    placeholder="https://www.youtube.com/watch?v=..."
+                  />
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label>Event (Optional)</Label>
                 <Select 
@@ -281,11 +374,12 @@ export function GalleryManager() {
               </div>
 
               <div className="space-y-2">
-                <Label>Title (for all images)</Label>
+                <Label>{uploadForm.media_type === 'video' ? 'Title *' : 'Title (for all images)'}</Label>
                 <Input
                   value={uploadForm.title}
                   onChange={(e) => setUploadForm({ ...uploadForm, title: e.target.value })}
-                  placeholder="e.g., Diwali Celebration 2024"
+                  placeholder={uploadForm.media_type === 'video' ? 'Video title' : 'e.g., Diwali Celebration 2024'}
+                  required={uploadForm.media_type === 'video'}
                 />
               </div>
 
@@ -316,32 +410,36 @@ export function GalleryManager() {
                 />
               </div>
 
-              <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handleFileSelect}
-                  className="hidden"
-                  id="gallery-upload"
-                />
-                <label htmlFor="gallery-upload" className="cursor-pointer flex flex-col items-center">
-                  <Upload className="w-8 h-8 text-muted-foreground mb-2" />
-                  <span className="text-sm font-medium">Click to select images</span>
-                  <span className="text-xs text-muted-foreground mt-1">Multiple images supported</span>
-                </label>
-              </div>
-
-              {selectedFiles.length > 0 && (
-                <div className="bg-muted/50 rounded p-3 text-sm">
-                  <p className="font-medium mb-2">{selectedFiles.length} image(s) selected:</p>
-                  <div className="max-h-24 overflow-y-auto space-y-1">
-                    {selectedFiles.map((file, i) => (
-                      <p key={i} className="text-xs text-muted-foreground truncate">{file.name}</p>
-                    ))}
+              {uploadForm.media_type === 'image' && (
+                <>
+                  <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleFileSelect}
+                      className="hidden"
+                      id="gallery-upload"
+                    />
+                    <label htmlFor="gallery-upload" className="cursor-pointer flex flex-col items-center">
+                      <Upload className="w-8 h-8 text-muted-foreground mb-2" />
+                      <span className="text-sm font-medium">Click to select images</span>
+                      <span className="text-xs text-muted-foreground mt-1">Multiple images supported</span>
+                    </label>
                   </div>
-                </div>
+
+                  {selectedFiles.length > 0 && (
+                    <div className="bg-muted/50 rounded p-3 text-sm">
+                      <p className="font-medium mb-2">{selectedFiles.length} image(s) selected:</p>
+                      <div className="max-h-24 overflow-y-auto space-y-1">
+                        {selectedFiles.map((file, i) => (
+                          <p key={i} className="text-xs text-muted-foreground truncate">{file.name}</p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
 
               {isUploading && (
@@ -354,9 +452,9 @@ export function GalleryManager() {
               <Button 
                 className="w-full" 
                 onClick={handleUpload}
-                disabled={selectedFiles.length === 0 || isUploading}
+                disabled={(uploadForm.media_type === 'image' ? selectedFiles.length === 0 : (!uploadForm.video_url || !uploadForm.title)) || isUploading || addVideo.isPending}
               >
-                {isUploading ? 'Uploading...' : `Upload ${selectedFiles.length} Image(s)`}
+                {isUploading || addVideo.isPending ? 'Processing...' : uploadForm.media_type === 'video' ? 'Add Video' : `Upload ${selectedFiles.length} Image(s)`}
               </Button>
             </div>
           </DialogContent>
@@ -373,7 +471,20 @@ export function GalleryManager() {
               </div>
               <div>
                 <p className="text-2xl font-bold">{totalImages}</p>
-                <p className="text-sm text-muted-foreground">Total Images</p>
+                <p className="text-sm text-muted-foreground">Images</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-border">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-red-500/10 flex items-center justify-center">
+                <Upload className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{totalVideos}</p>
+                <p className="text-sm text-muted-foreground">Videos</p>
               </div>
             </div>
           </CardContent>

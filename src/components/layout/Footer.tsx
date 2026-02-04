@@ -29,11 +29,14 @@ export function Footer() {
               name: 'About Us',
               href: '/about'
             }, {
-              name: 'Panditji Directory',
+              name: 'Brahmin Directory',
               href: '/panditji'
             }, {
               name: 'Yagyas',
               href: '/yagyas'
+            }, {
+              name: 'Past Event Live',
+              href: '/past-event-live'
             }, {
               name: 'Gallery',
               href: '/gallery'
