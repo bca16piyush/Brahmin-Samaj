@@ -37,53 +37,7 @@ export default function About() {
       {/* Hero */}
       <section className="py-20 lg:py-28 bg-gradient-to-b from-cream to-background">
         <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto text-center">
-            <motion.span initial={{
-            opacity: 0,
-            y: 20
-          }} animate={{
-            opacity: 1,
-            y: 0
-          }} className="inline-block px-4 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
-              परम पूज्य गुरुदेव
-            </motion.span>
-            <motion.h1 initial={{
-            opacity: 0,
-            y: 20
-          }} animate={{
-            opacity: 1,
-            y: 0
-          }} transition={{
-            delay: 0.1
-          }} className="font-heading text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-6">
-              महामंडलेश्वर स्वामी श्री <span className="text-gradient-saffron font-sans">प्रखर जी महाराज</span>
-            </motion.h1>
-            <motion.p initial={{
-            opacity: 0,
-            y: 20
-          }} animate={{
-            opacity: 1,
-            y: 0
-          }} transition={{
-            delay: 0.2
-          }} className="text-lg text-muted-foreground leading-relaxed mb-4">
-              परम पूज्य अनंत श्री विभूषित महामंडलेश्वर स्वामी श्री प्रखर जी महाराज, 
-              धर्मसम्राट स्वामी श्री करपात्री जी महाराज के कृपा पात्र एवं 
-              जगद्शंकराचार्य स्वामी श्री निरंजनदेव तीर्थ जी महाराज के शिष्य हैं।
-            </motion.p>
-            <motion.p initial={{
-            opacity: 0,
-            y: 20
-          }} animate={{
-            opacity: 1,
-            y: 0
-          }} transition={{
-            delay: 0.3
-          }} className="text-base text-muted-foreground leading-relaxed">
-              पूज्य गुरुदेव काशी के निवासी हैं और बाल्यावस्था से ही नैसर्गिक वैराग्य की स्थिति उत्पन्न हो गई थी। 
-              उनका जीवन "परोपकारार्थमिदं शरीरम्" का एक उत्कृष्ट उदाहरण है।
-            </motion.p>
-          </div>
+          
         </div>
       </section>
 
