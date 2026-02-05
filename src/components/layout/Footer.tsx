@@ -29,6 +29,9 @@ export function Footer() {
               name: 'About Us',
               href: '/about'
             }, {
+              name: 'News & Events',
+              href: '/news'
+            }, {
               name: 'Brahmin Directory',
               href: '/panditji'
             }, {

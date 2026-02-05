@@ -23,6 +23,7 @@ import Privacy from "./pages/Privacy";
 import NotFound from "./pages/NotFound";
 import UpcomingEvents from "./pages/UpcomingEvents";
 import PastEventLive from "./pages/PastEventLive";
+import NewsEvents from "./pages/NewsEvents";
 
 const queryClient = new QueryClient();
 
@@ -46,6 +47,7 @@ const App = () => (
             <Route path="/yagyas/:id" element={<EventDetail />} />
             <Route path="/upcoming-events" element={<UpcomingEvents />} />
             <Route path="/past-event-live" element={<PastEventLive />} />
+            <Route path="/news" element={<NewsEvents />} />
             {/* Legacy routes for backward compatibility */}
             <Route path="/events" element={<Events />} />
             <Route path="/events/:id" element={<EventDetail />} />
