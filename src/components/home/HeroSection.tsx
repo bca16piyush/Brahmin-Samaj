@@ -67,9 +67,9 @@ export function HeroSection() {
           duration: 0.8,
           delay: 0.3
         }} className="flex flex-col sm:flex-row gap-4">
-            <Link to="/upcoming-events">
+            <Link to="/news">
               <Button variant="hero" size="lg" className="w-full sm:w-auto">
-                View Upcoming Yagyas
+                News & Upcoming Events
                 <ArrowRight className="w-5 h-5 ml-1" />
               </Button>
             </Link>
