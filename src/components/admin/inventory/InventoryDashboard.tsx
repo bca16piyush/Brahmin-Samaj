@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Package, Plus, ArrowUpCircle, ArrowDownCircle, History, AlertTriangle, TrendingUp, MessageSquare, Loader2 } from 'lucide-react';
+import { Package, Plus, ArrowUpCircle, ArrowDownCircle, History, AlertTriangle, TrendingUp, MessageSquare, Loader2, Printer, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +14,9 @@ import { TransactionHistory } from './TransactionHistory';
 import { InventoryReports } from './InventoryReports';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useDeleteInventoryItem } from '@/hooks/useDeleteOperations';
+import { DeleteConfirmDialog } from '../DeleteConfirmDialog';
+import { PrintableReport, printReport } from '../PrintableReport';
 
 const categoryLabels: Record<InventoryCategory, string> = {
   puja_materials: 'Puja Materials',
@@ -23,14 +26,24 @@ const categoryLabels: Record<InventoryCategory, string> = {
 
 export function InventoryDashboard() {
   const { data: stockBalance, isLoading } = useInventoryStockBalance();
+  const deleteItem = useDeleteInventoryItem();
   const [showStockInForm, setShowStockInForm] = useState(false);
   const [showStockOutForm, setShowStockOutForm] = useState(false);
   const [showItemForm, setShowItemForm] = useState(false);
   const [sendingAlerts, setSendingAlerts] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const printRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   const lowStockItems = stockBalance?.filter(item => item.is_low_stock) || [];
   const totalItems = stockBalance?.length || 0;
+
+  const handleDelete = () => {
+    if (!deleteTarget) return;
+    deleteItem.mutate(deleteTarget, {
+      onSuccess: () => setDeleteTarget(null),
+    });
+  };
 
   const handleSendLowStockAlerts = async () => {
     if (lowStockItems.length === 0) {
@@ -173,6 +186,14 @@ export function InventoryDashboard() {
       </div>
 
       {/* Main Content Tabs */}
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="font-heading text-xl font-semibold">Inventory Management</h2>
+        <Button variant="outline" size="sm" onClick={() => printReport(printRef)} className="gap-2">
+          <Printer className="w-4 h-4" />
+          Print Report
+        </Button>
+      </div>
+      
       <Tabs defaultValue="stock" className="space-y-4">
         <TabsList>
           <TabsTrigger value="stock" className="gap-2">
@@ -210,6 +231,7 @@ export function InventoryDashboard() {
                         <TableHead className="text-center">Current Stock</TableHead>
                         <TableHead className="text-center">Min Level</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -251,6 +273,16 @@ export function InventoryDashboard() {
                               <Badge variant="secondary">In Stock</Badge>
                             )}
                           </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setDeleteTarget(item.id)}
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -286,6 +318,62 @@ export function InventoryDashboard() {
       <StockInForm open={showStockInForm} onOpenChange={setShowStockInForm} />
       <StockOutForm open={showStockOutForm} onOpenChange={setShowStockOutForm} />
       <InventoryItemForm open={showItemForm} onOpenChange={setShowItemForm} />
+      
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+        title="Delete Inventory Item"
+        description="Are you sure you want to delete this item? All related stock transactions will also be deleted. This action cannot be undone."
+        isLoading={deleteItem.isPending}
+      />
+
+      {/* Printable Report */}
+      <div className="hidden">
+        <PrintableReport
+          ref={printRef}
+          title="Inventory Stock Report"
+          subtitle={`Total ${totalItems} items`}
+          stats={[
+            { label: 'Total Items', value: totalItems },
+            { label: 'Low Stock', value: lowStockItems.length },
+            { label: 'In Stock', value: totalItems - lowStockItems.length },
+            { label: 'Categories', value: '3' },
+          ]}
+        >
+          <table>
+            <thead>
+              <tr>
+                <th>Item Name</th>
+                <th>Category</th>
+                <th>Stock In</th>
+                <th>Stock Out</th>
+                <th>Current Stock</th>
+                <th>Min Level</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {stockBalance?.map((item) => (
+                <tr key={item.id}>
+                  <td>{item.name}</td>
+                  <td>{categoryLabels[item.category]}</td>
+                  <td className="text-center">+{item.total_stock_in} {item.unit}</td>
+                  <td className="text-center">-{item.total_stock_out} {item.unit}</td>
+                  <td className="text-center font-bold">{item.current_stock} {item.unit}</td>
+                  <td className="text-center">{item.min_stock_level} {item.unit}</td>
+                  <td>
+                    <span className={`badge ${item.is_low_stock ? 'badge-cancelled' : 'badge-confirmed'}`}>
+                      {item.is_low_stock ? 'Low Stock' : 'In Stock'}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </PrintableReport>
+      </div>
     </motion.div>
   );
 }

@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { format, isToday, isTomorrow, addDays } from 'date-fns';
-import { Bed, CalendarCheck, Users, Ban, DollarSign, Plus, Lock, Unlock, Calendar, Mail, Image } from 'lucide-react';
+import { Bed, CalendarCheck, Users, Ban, DollarSign, Plus, Lock, Unlock, Calendar, Mail, Image, Printer, Trash2, Receipt } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +18,9 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { RoomTypeImageUpload } from './RoomTypeImageUpload';
+import { useDeleteRoomBooking, useDeleteRoom } from '@/hooks/useDeleteOperations';
+import { DeleteConfirmDialog } from './DeleteConfirmDialog';
+import { PrintableReport, printReport } from './PrintableReport';
 import {
   useRooms,
   useRoomTypes,
@@ -53,7 +56,10 @@ export function RoomManager() {
   const toggleBlock = useToggleRoomBlock();
   const updatePrice = useUpdateRoomTypePrice();
   const createRoom = useCreateRoom();
+  const deleteRoomBooking = useDeleteRoomBooking();
+  const deleteRoom = useDeleteRoom();
   const { toast } = useToast();
+  const printRef = useRef<HTMLDivElement>(null);
 
   const [showAddRoom, setShowAddRoom] = useState(false);
   const [newRoomTypeId, setNewRoomTypeId] = useState('');
@@ -65,6 +71,8 @@ export function RoomManager() {
   const [editingPrice, setEditingPrice] = useState<string | null>(null);
   const [newPrice, setNewPrice] = useState('');
   const [sendingNotification, setSendingNotification] = useState<string | null>(null);
+  const [deleteBookingTarget, setDeleteBookingTarget] = useState<string | null>(null);
+  const [deleteRoomTarget, setDeleteRoomTarget] = useState<string | null>(null);
 
   // Today's arrivals
   const todayArrivals = bookings?.filter(b => 

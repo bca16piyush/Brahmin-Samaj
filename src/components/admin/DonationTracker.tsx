@@ -1,11 +1,16 @@
-import { useMemo } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Package, Check, Clock, Phone, MapPin, Home, Gift, CheckCircle, BarChart3 } from 'lucide-react';
+import { Package, Check, Clock, Phone, MapPin, Home, Gift, CheckCircle, BarChart3, Printer, Trash2, Receipt } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useInKindDonations, useUpdateDonationStatus } from '@/hooks/useAdmin';
+import { useDeleteInKindDonation } from '@/hooks/useDeleteOperations';
+import { DeleteConfirmDialog } from './DeleteConfirmDialog';
+import { PrintableReport, printReport } from './PrintableReport';
 import { format } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 function ItemSummary({ donations }: { donations: any[] }) {
   const itemSummary = useMemo(() => {
@@ -108,10 +113,53 @@ function DonationSummary({ donations }: { donations: any[] }) {
 export function DonationTracker() {
   const { data: donations, isLoading } = useInKindDonations();
   const updateStatus = useUpdateDonationStatus();
+  const deleteDonation = useDeleteInKindDonation();
+  const { toast } = useToast();
+  const printRef = useRef<HTMLDivElement>(null);
+  
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [sendingReceipt, setSendingReceipt] = useState<string | null>(null);
 
   const handleMarkReceived = (id: string) => {
     updateStatus.mutate({ id, status: 'received' });
   };
+
+  const handleDelete = () => {
+    if (!deleteTarget) return;
+    deleteDonation.mutate(deleteTarget, {
+      onSuccess: () => setDeleteTarget(null),
+    });
+  };
+
+  const handleSendReceipt = async (donation: any) => {
+    setSendingReceipt(donation.id);
+    try {
+      await supabase.functions.invoke('send-whatsapp', {
+        body: {
+          type: 'announcement',
+          userId: donation.user_id,
+          title: '🎁 Donation Receipt',
+          body: `Thank you ${donation.profiles?.name || 'dear donor'}! Your pledge of ${donation.item_type} (${donation.quantity}) has been recorded. Status: ${donation.status}. Drop-off: ${donation.dropoff_location}.\n\nReceipt generated on ${format(new Date(), 'dd MMM yyyy, hh:mm a')}.`,
+        },
+      });
+      toast({
+        title: 'Receipt Sent',
+        description: 'Donation receipt has been sent via WhatsApp.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Failed to Send Receipt',
+        description: 'Could not send receipt. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSendingReceipt(null);
+    }
+  };
+
+  const pledgedCount = donations?.filter((d) => d.status === 'pledged').length || 0;
+  const receivedCount = donations?.filter((d) => d.status === 'received').length || 0;
+  const uniqueDonors = [...new Set(donations?.map((d) => d.user_id) || [])].length;
 
   if (isLoading) {
     return (
@@ -148,8 +196,17 @@ export function DonationTracker() {
 
   return (
     <div>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="font-heading text-xl font-semibold">In-Kind Donations</h2>
+        <Button variant="outline" size="sm" onClick={() => printReport(printRef)} className="gap-2">
+          <Printer className="w-4 h-4" />
+          Print Report
+        </Button>
+      </div>
+
       <DonationSummary donations={donations} />
       <ItemSummary donations={donations} />
+      
       <div className="space-y-4">
         {donations.map((donation: any, index: number) => (
           <motion.div
@@ -169,7 +226,26 @@ export function DonationTracker() {
                       From: {donation.profiles?.name || 'Anonymous'}
                     </p>
                   </div>
-                  {getStatusBadge(donation.status)}
+                  <div className="flex items-center gap-2">
+                    {getStatusBadge(donation.status)}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleSendReceipt(donation)}
+                      disabled={sendingReceipt === donation.id}
+                      title="Send Receipt"
+                    >
+                      <Receipt className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setDeleteTarget(donation.id)}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
@@ -223,6 +299,60 @@ export function DonationTracker() {
             </Card>
           </motion.div>
         ))}
+      </div>
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+        title="Delete Donation"
+        description="Are you sure you want to delete this donation record? This action cannot be undone."
+        isLoading={deleteDonation.isPending}
+      />
+
+      {/* Printable Report */}
+      <div className="hidden">
+        <PrintableReport
+          ref={printRef}
+          title="In-Kind Donations Report"
+          subtitle={`Total ${donations?.length || 0} donations`}
+          stats={[
+            { label: 'Total Donations', value: donations?.length || 0 },
+            { label: 'Pending', value: pledgedCount },
+            { label: 'Received', value: receivedCount },
+            { label: 'Unique Donors', value: uniqueDonors },
+          ]}
+        >
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Donor</th>
+                <th>Item</th>
+                <th>Quantity</th>
+                <th>Drop-off Location</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {donations?.map((donation) => (
+                <tr key={donation.id}>
+                  <td>{format(new Date(donation.created_at), 'dd MMM yyyy')}</td>
+                  <td>{donation.profiles?.name || 'Anonymous'}</td>
+                  <td>{donation.item_type}</td>
+                  <td>{donation.quantity}</td>
+                  <td>{donation.dropoff_location}</td>
+                  <td>
+                    <span className={`badge badge-${donation.status}`}>
+                      {donation.status}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </PrintableReport>
       </div>
     </div>
   );
