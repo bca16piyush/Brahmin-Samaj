@@ -22,6 +22,8 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
     const adminAlertEmail = Deno.env.get('ADMIN_ALERT_EMAIL');
+    const whatsappToken = Deno.env.get('WHATSAPP_ACCESS_TOKEN');
+    const phoneNumberId = Deno.env.get('WHATSAPP_PHONE_NUMBER_ID');
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -96,8 +98,16 @@ serve(async (req) => {
       .eq('id', booking.user_id)
       .single();
 
+    // Fetch user's notification preferences
+    const { data: userSubscription } = await supabase
+      .from('notification_subscriptions')
+      .select('whatsapp_number, whatsapp_notifications, email_notifications')
+      .eq('user_id', booking.user_id)
+      .maybeSingle();
+
     const results = {
       userEmailSent: false,
+      userWhatsAppSent: false,
       adminEmailSent: false,
     };
 
@@ -188,7 +198,43 @@ serve(async (req) => {
       }
     }
 
-    // Log audit event
+    // Send WhatsApp to user if configured and enabled
+    if (whatsappToken && phoneNumberId && userSubscription?.whatsapp_number && userSubscription.whatsapp_notifications) {
+      try {
+        const formattedPhone = userSubscription.whatsapp_number.replace(/[^0-9]/g, '');
+        
+        const response = await fetch(
+          `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${whatsappToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              messaging_product: 'whatsapp',
+              recipient_type: 'individual',
+              to: formattedPhone,
+              type: 'text',
+              text: {
+                preview_url: false,
+                body: `*${userSubject}*\n\n${userMessage}`,
+              },
+            }),
+          }
+        );
+
+        if (response.ok) {
+          results.userWhatsAppSent = true;
+          console.log('User WhatsApp sent successfully');
+        } else {
+          const errorData = await response.json();
+          console.error('Failed to send user WhatsApp:', errorData);
+        }
+      } catch (whatsappError) {
+        console.error('Failed to send user WhatsApp:', whatsappError);
+      }
+    }
     if (user) {
       try {
         await supabase.from('admin_audit_logs').insert({
@@ -201,6 +247,7 @@ serve(async (req) => {
             notification_type: type,
             room_number: booking.rooms?.room_number,
             user_email_sent: results.userEmailSent,
+            user_whatsapp_sent: results.userWhatsAppSent,
             admin_email_sent: results.adminEmailSent,
           },
           ip_address: req.headers.get('x-forwarded-for') || req.headers.get('cf-connecting-ip') || 'unknown',

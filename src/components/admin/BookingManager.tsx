@@ -1,14 +1,19 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { format } from 'date-fns';
 import { motion } from 'framer-motion';
-import { Calendar, MapPin, Clock, User, Phone, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Calendar, MapPin, Clock, User, Phone, CheckCircle, XCircle, AlertCircle, Printer, Trash2, Receipt } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAllBookings, useUpdateBookingStatus } from '@/hooks/usePanditBookings';
+import { useDeletePanditBooking } from '@/hooks/useDeleteOperations';
+import { DeleteConfirmDialog } from './DeleteConfirmDialog';
+import { PrintableReport, printReport } from './PrintableReport';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 const statusColors: Record<string, string> = {
   pending: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/30',
@@ -27,10 +32,15 @@ const statusIcons: Record<string, typeof CheckCircle> = {
 export function BookingManager() {
   const { data: bookings, isLoading } = useAllBookings();
   const updateStatus = useUpdateBookingStatus();
+  const deleteBooking = useDeletePanditBooking();
+  const { toast } = useToast();
+  const printRef = useRef<HTMLDivElement>(null);
   
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
   const [newStatus, setNewStatus] = useState('');
   const [adminNotes, setAdminNotes] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [sendingReceipt, setSendingReceipt] = useState<string | null>(null);
 
   const handleOpenUpdate = (booking: any) => {
     setSelectedBooking(booking);
@@ -50,7 +60,41 @@ export function BookingManager() {
     });
   };
 
+  const handleDelete = () => {
+    if (!deleteTarget) return;
+    deleteBooking.mutate(deleteTarget, {
+      onSuccess: () => setDeleteTarget(null),
+    });
+  };
+
+  const handleSendReceipt = async (booking: any) => {
+    setSendingReceipt(booking.id);
+    try {
+      await supabase.functions.invoke('send-booking-notification', {
+        body: {
+          type: booking.status === 'confirmed' ? 'booking_confirmed' : 'new_booking',
+          bookingId: booking.id,
+        },
+      });
+      toast({
+        title: 'Receipt Sent',
+        description: 'Receipt has been sent via WhatsApp & Email.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Failed to Send Receipt',
+        description: 'Could not send receipt. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSendingReceipt(null);
+    }
+  };
+
   const pendingCount = bookings?.filter(b => b.status === 'pending').length || 0;
+  const confirmedCount = bookings?.filter(b => b.status === 'confirmed').length || 0;
+  const completedCount = bookings?.filter(b => b.status === 'completed').length || 0;
+  const cancelledCount = bookings?.filter(b => b.status === 'cancelled').length || 0;
 
   if (isLoading) {
     return (
@@ -69,6 +113,10 @@ export function BookingManager() {
             <Badge variant="destructive">{pendingCount} pending</Badge>
           )}
         </div>
+        <Button variant="outline" size="sm" onClick={() => printReport(printRef)} className="gap-2">
+          <Printer className="w-4 h-4" />
+          Print Report
+        </Button>
       </div>
 
       {bookings?.length === 0 ? (
@@ -146,13 +194,32 @@ export function BookingManager() {
                         )}
                       </div>
                       
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleOpenUpdate(booking)}
-                      >
-                        Update
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleSendReceipt(booking)}
+                          disabled={sendingReceipt === booking.id}
+                          title="Send Receipt"
+                        >
+                          <Receipt className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleOpenUpdate(booking)}
+                        >
+                          Update
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setDeleteTarget(booking.id)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -207,6 +274,60 @@ export function BookingManager() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+        title="Delete Booking"
+        description="Are you sure you want to delete this booking? This action cannot be undone."
+        isLoading={deleteBooking.isPending}
+      />
+
+      {/* Printable Report */}
+      <div className="hidden">
+        <PrintableReport
+          ref={printRef}
+          title="Brahmin Booking Report"
+          subtitle={`Total ${bookings?.length || 0} bookings`}
+          stats={[
+            { label: 'Pending', value: pendingCount },
+            { label: 'Confirmed', value: confirmedCount },
+            { label: 'Completed', value: completedCount },
+            { label: 'Cancelled', value: cancelledCount },
+          ]}
+        >
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>User</th>
+                <th>Pandit</th>
+                <th>Ceremony</th>
+                <th>Location</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {bookings?.map((booking) => (
+                <tr key={booking.id}>
+                  <td>{format(new Date(booking.booking_date), 'dd MMM yyyy')}</td>
+                  <td>{booking.profiles?.name || 'Unknown'}</td>
+                  <td>{booking.pandits?.name || 'Unknown'}</td>
+                  <td>{booking.ceremony_type}</td>
+                  <td>{booking.location || '-'}</td>
+                  <td>
+                    <span className={`badge badge-${booking.status}`}>
+                      {booking.status}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </PrintableReport>
+      </div>
     </>
   );
 }
