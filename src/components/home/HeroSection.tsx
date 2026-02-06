@@ -40,7 +40,7 @@ export function HeroSection() {
           delay: 0.1
         }} className="text-2xl lg:text-4xl font-bold text-primary-foreground leading-tight mb-6 text-center font-sans md:text-3xl">विश्वव्यापी आतंकवाद का शमन, हिन्दू राष्ट्र निर्माण एवं विश्व शान्ति हेतु </motion.h1>
 
-          <motion.p initial={{
+        <motion.p initial={{
           opacity: 0,
           y: 30
         }} animate={{
@@ -50,8 +50,8 @@ export function HeroSection() {
           duration: 0.8,
           delay: 0.2
         }} className="text-lg md:text-xl text-primary-foreground/80 mb-8 leading-relaxed">
-            महामंडलेश्वर स्वामी श्री प्रखर जी महाराज के सान्निध्य में वैदिक शास्त्रीय विधि-विधान से 
-            आयोजित महायज्ञ। भ्रष्टाचार मुक्त भारत एवं राष्ट्र उन्नति के पवित्र संकल्प।
+            परम पूज्य अनन्तश्री विभूषित स्वामी श्री प्रखर जी महाराज के सानिध्य में 2000 विद्वान ब्राह्मणों द्वारा 
+            43 दिनों में 200 कुण्डीय विराट शत (100) गायत्री पुरश्चरण महायज्ञ
           </motion.p>
 
           <motion.div initial={{
