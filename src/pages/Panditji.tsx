@@ -370,7 +370,7 @@ export default function Panditji() {
           }} animate={{
             opacity: 1,
             y: 0
-          }} className="inline-block px-4 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4">Find a Brahmin</motion.span>
+          }} className="inline-block px-4 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4">Find a Pandit Ji</motion.span>
             <motion.h1 initial={{
             opacity: 0,
             y: 20
