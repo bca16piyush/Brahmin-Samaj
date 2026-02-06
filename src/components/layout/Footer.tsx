@@ -12,9 +12,11 @@ export function Footer() {
               </div>
               <h3 className="font-heading text-xl font-semibold">महायज्ञ</h3>
             </div>
-            <p className="text-primary-foreground/80 text-sm leading-relaxed">
-              महामंडलेश्वर स्वामी श्री प्रखर जी महाराज के सान्निध्य में वैदिक शास्त्रीय विधि-विधान से आयोजित महायज्ञ। 
-              विश्व कल्याण एवं राष्ट्र हित हेतु समर्पित।
+            <p className="text-primary-foreground/80 text-sm leading-relaxed font-sans">
+              परम पूज्य अनन्तश्री विभूषित स्वामी श्री प्रखर जी महाराज के सानिध्य में 2000 विद्वान ब्राह्मणों द्वारा 43 दिनों में 200 कुण्डीय विराट शत (100) गायत्री पुरश्चरण महायज्ञ
+
+
+
             </p>
           </div>
 
