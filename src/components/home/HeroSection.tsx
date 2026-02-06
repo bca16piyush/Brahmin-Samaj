@@ -40,7 +40,7 @@ export function HeroSection() {
           delay: 0.1
         }} className="font-heading text-4xl md:text-5xl lg:text-6xl font-bold text-primary-foreground leading-normal mb-6">
             महायज्ञ{' '}
-            <span className="text-gradient-saffron font-sans">विश्व कल्याण हेतु</span>
+            
           </motion.h1>
 
           <motion.p initial={{
