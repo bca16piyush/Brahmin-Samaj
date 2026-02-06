@@ -290,8 +290,38 @@ export default function NewsEvents() {
                <Bell className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                <h3 className="font-heading text-lg font-semibold mb-2">No News Yet</h3>
                <p className="text-muted-foreground">Check back soon for community updates!</p>
-             </motion.div> : <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-               {news.map((item, index) => {})}
+              </motion.div> : <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+               {news.map((item, index) => (
+                 <motion.article
+                   key={item.id}
+                   initial={{ opacity: 0, y: 20 }}
+                   whileInView={{ opacity: 1, y: 0 }}
+                   viewport={{ once: true }}
+                   transition={{ delay: index * 0.1 }}
+                   className="bg-card rounded-xl border border-border p-6 hover:shadow-lg transition-shadow"
+                 >
+                   <div className="flex items-start justify-between gap-3 mb-3">
+                     <div className="flex items-center gap-2">
+                       <Newspaper className="w-5 h-5 text-primary" />
+                       {item.is_urgent && (
+                         <Badge variant="destructive" className="gap-1">
+                           <AlertTriangle className="w-3 h-3" />
+                           Urgent
+                         </Badge>
+                       )}
+                     </div>
+                     <span className="text-xs text-muted-foreground">
+                       {format(new Date(item.created_at!), 'MMM d, yyyy')}
+                     </span>
+                   </div>
+                   <h3 className="font-heading text-lg font-semibold mb-2 text-foreground">
+                     {item.title}
+                   </h3>
+                   <p className="text-muted-foreground text-sm line-clamp-3">
+                     {item.content}
+                   </p>
+                 </motion.article>
+               ))}
              </div>}
          </div>
        </section>

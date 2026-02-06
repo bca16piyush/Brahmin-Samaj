@@ -38,9 +38,8 @@ export function HeroSection() {
         }} transition={{
           duration: 0.8,
           delay: 0.1
-        }} className="font-heading text-4xl md:text-5xl lg:text-6xl font-bold text-primary-foreground leading-normal mb-6">
-            महायज्ञ{' '}
-            
+        }} className="font-heading text-2xl md:text-3xl lg:text-4xl font-bold text-primary-foreground leading-tight mb-6">
+            विश्वव्यापी आतंकवाद का शमन, हिन्दू राष्ट्र निर्माण एवं विश्व शान्ति हेतु
           </motion.h1>
 
           <motion.p initial={{
