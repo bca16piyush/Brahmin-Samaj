@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Upload, Download, FileSpreadsheet, AlertTriangle, CheckCircle, XCircle, Loader2, Users } from 'lucide-react';
+import { Upload, Download, FileSpreadsheet, AlertTriangle, CheckCircle, Loader2, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -11,7 +11,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { generateSecurePassword, sendPasswordResetAfterCreation } from '@/lib/securePassword';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 
 interface ImportUser {
   name: string;
@@ -67,16 +67,21 @@ export function BulkUserImport({ onImportComplete }: BulkUserImportProps) {
       let parsedUsers: ImportUser[] = [];
 
       if (isExcel) {
-        const data = await file.arrayBuffer();
-        const workbook = XLSX.read(data);
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
+        const arrayBuffer = await file.arrayBuffer();
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(arrayBuffer);
+        const worksheet = workbook.worksheets[0];
         
-        if (jsonData.length < 2) {
+        if (!worksheet || worksheet.rowCount < 2) {
           throw new Error('File must have headers and at least one data row');
         }
 
-        const headers = (jsonData[0] as string[]).map(h => h?.toString().toLowerCase().trim());
+        const headerRow = worksheet.getRow(1);
+        const headers: string[] = [];
+        headerRow.eachCell((cell, colNumber) => {
+          headers[colNumber - 1] = cell.value?.toString().toLowerCase().trim() || '';
+        });
+
         const requiredHeaders = ['name', 'email', 'mobile'];
         const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
 
@@ -84,23 +89,36 @@ export function BulkUserImport({ onImportComplete }: BulkUserImportProps) {
           throw new Error(`Missing required columns: ${missingHeaders.join(', ')}`);
         }
 
-        parsedUsers = jsonData.slice(1)
-          .filter(row => row.some(cell => cell))
-          .map(row => {
-            const user: any = {};
-            headers.forEach((header, index) => {
-              if (header) user[header] = row[index]?.toString() || '';
+        const headerIndexMap: Record<string, number> = {};
+        headers.forEach((header, index) => {
+          if (header) headerIndexMap[header] = index;
+        });
+
+        worksheet.eachRow((row, rowNumber) => {
+          if (rowNumber === 1) return; // Skip header
+          
+          const getCellValue = (header: string) => {
+            const index = headerIndexMap[header];
+            if (index === undefined) return '';
+            const cell = row.getCell(index + 1);
+            return cell.value?.toString() || '';
+          };
+
+          const name = getCellValue('name');
+          const email = getCellValue('email');
+          const mobile = getCellValue('mobile');
+
+          if (name && email && mobile) {
+            parsedUsers.push({
+              name,
+              email,
+              mobile,
+              gotra: getCellValue('gotra') || undefined,
+              father_name: getCellValue('father_name') || undefined,
+              native_village: getCellValue('native_village') || undefined,
             });
-            return {
-              name: user.name || '',
-              email: user.email || '',
-              mobile: user.mobile || '',
-              gotra: user.gotra,
-              father_name: user.father_name,
-              native_village: user.native_village,
-            };
-          })
-          .filter(u => u.name && u.email && u.mobile);
+          }
+        });
       } else {
         // CSV parsing
         const text = await file.text();
@@ -273,17 +291,45 @@ export function BulkUserImport({ onImportComplete }: BulkUserImportProps) {
     },
   });
 
-  const handleDownloadSample = () => {
-    const sampleData = [
-      ['name', 'email', 'mobile', 'gotra', 'father_name', 'native_village'],
-      ['Rajesh Sharma', 'rajesh@example.com', '9876543210', 'Bharadwaj', 'Ramesh Sharma', 'Jaipur'],
-      ['Priya Mishra', 'priya@example.com', '9876543211', 'Kashyap', 'Suresh Mishra', 'Varanasi'],
+  const handleDownloadSample = async () => {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Users');
+    
+    worksheet.columns = [
+      { header: 'name', key: 'name', width: 20 },
+      { header: 'email', key: 'email', width: 25 },
+      { header: 'mobile', key: 'mobile', width: 15 },
+      { header: 'gotra', key: 'gotra', width: 15 },
+      { header: 'father_name', key: 'father_name', width: 20 },
+      { header: 'native_village', key: 'native_village', width: 20 },
     ];
 
-    const ws = XLSX.utils.aoa_to_sheet(sampleData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Users');
-    XLSX.writeFile(wb, 'sample_users.xlsx');
+    worksheet.addRow({
+      name: 'Rajesh Sharma',
+      email: 'rajesh@example.com',
+      mobile: '9876543210',
+      gotra: 'Bharadwaj',
+      father_name: 'Ramesh Sharma',
+      native_village: 'Jaipur',
+    });
+
+    worksheet.addRow({
+      name: 'Priya Mishra',
+      email: 'priya@example.com',
+      mobile: '9876543211',
+      gotra: 'Kashyap',
+      father_name: 'Suresh Mishra',
+      native_village: 'Varanasi',
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'sample_users.xlsx';
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const duplicateCount = importUsers.filter(u => u.isDuplicate).length;
