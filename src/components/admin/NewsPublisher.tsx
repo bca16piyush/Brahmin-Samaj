@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, AlertTriangle, Bell, Calendar, Users, Trash2, Printer } from 'lucide-react';
+import { Plus, AlertTriangle, Bell, Calendar, Users, Trash2, Pencil } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,23 +10,26 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { useNews, useCreateNews, useDeleteNews } from '@/hooks/useAdmin';
+import { useNews, useCreateNews, useUpdateNews, useDeleteNews } from '@/hooks/useAdmin';
 import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
-import { PrintableReport, printReport } from './PrintableReport';
+import type { Database } from '@/integrations/supabase/types';
+
+type News = Database['public']['Tables']['news']['Row'];
 
 export function NewsPublisher() {
   const { data: newsItems, isLoading } = useNews();
   const createNews = useCreateNews();
+  const updateNews = useUpdateNews();
   const deleteNews = useDeleteNews();
   const { user } = useAuth();
-  const printRef = useRef<HTMLDivElement>(null);
   
   const [dialogOpen, setDialogOpen] = useState(false);
   const [confirmBroadcastOpen, setConfirmBroadcastOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [editingNews, setEditingNews] = useState<News | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     content: '',
@@ -50,11 +53,28 @@ export function NewsPublisher() {
     enabled: dialogOpen,
   });
 
+  const openCreateDialog = () => {
+    setEditingNews(null);
+    setFormData({ title: '', content: '', is_urgent: false, send_notification: false });
+    setDialogOpen(true);
+  };
+
+  const openEditDialog = (news: News) => {
+    setEditingNews(news);
+    setFormData({
+      title: news.title,
+      content: news.content,
+      is_urgent: news.is_urgent || false,
+      send_notification: false, // Don't resend notification on edit
+    });
+    setDialogOpen(true);
+  };
+
   const handleSubmit = () => {
     if (!formData.title.trim() || !formData.content.trim()) return;
     
-    // If notification is enabled, show confirmation dialog first
-    if (formData.send_notification && subscriberCount && subscriberCount > 0) {
+    // If creating new and notification is enabled, show confirmation dialog first
+    if (!editingNews && formData.send_notification && subscriberCount && subscriberCount > 0) {
       setConfirmBroadcastOpen(true);
       return;
     }
@@ -63,13 +83,32 @@ export function NewsPublisher() {
   };
 
   const executeSubmit = () => {
-    createNews.mutate({
-      ...formData,
-      created_by: user?.id || null,
-    });
+    if (editingNews) {
+      // Update existing news
+      updateNews.mutate({
+        id: editingNews.id,
+        data: {
+          title: formData.title,
+          content: formData.content,
+          is_urgent: formData.is_urgent,
+        },
+      });
+    } else {
+      // Create new news
+      createNews.mutate({
+        ...formData,
+        created_by: user?.id || null,
+      });
+    }
     setDialogOpen(false);
     setConfirmBroadcastOpen(false);
+    setEditingNews(null);
     setFormData({ title: '', content: '', is_urgent: false, send_notification: false });
+  };
+
+  const handleDelete = (id: string) => {
+    deleteNews.mutate(id);
+    setDeleteId(null);
   };
 
   if (isLoading) {
@@ -84,7 +123,7 @@ export function NewsPublisher() {
     <>
       <div className="flex justify-between items-center mb-6">
         <h2 className="font-heading text-xl font-semibold">News & Announcements</h2>
-        <Button variant="hero" onClick={() => setDialogOpen(true)}>
+        <Button variant="hero" onClick={openCreateDialog}>
           <Plus className="w-4 h-4 mr-2" />
           Publish News
         </Button>
@@ -117,6 +156,22 @@ export function NewsPublisher() {
                         Notified
                       </Badge>
                     )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => openEditDialog(news)}
+                      className="h-8 w-8"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setDeleteId(news.id)}
+                      className="h-8 w-8 text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
                   </div>
                 </div>
               </CardHeader>
@@ -140,10 +195,11 @@ export function NewsPublisher() {
         )}
       </div>
 
+      {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Publish News</DialogTitle>
+            <DialogTitle>{editingNews ? 'Edit News' : 'Publish News'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -174,16 +230,18 @@ export function NewsPublisher() {
                 />
                 <Label htmlFor="urgent">Mark as Urgent</Label>
               </div>
-              <div className="flex items-center gap-2">
-                <Switch
-                  id="notify"
-                  checked={formData.send_notification}
-                  onCheckedChange={(checked) => setFormData({ ...formData, send_notification: checked })}
-                />
-                <Label htmlFor="notify">Send Notification</Label>
-              </div>
+              {!editingNews && (
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="notify"
+                    checked={formData.send_notification}
+                    onCheckedChange={(checked) => setFormData({ ...formData, send_notification: checked })}
+                  />
+                  <Label htmlFor="notify">Send Notification</Label>
+                </div>
+              )}
             </div>
-            {formData.send_notification && subscriberCount !== undefined && subscriberCount > 0 && (
+            {!editingNews && formData.send_notification && subscriberCount !== undefined && subscriberCount > 0 && (
               <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
                 <Users className="w-4 h-4 text-amber-600" />
                 <span className="text-sm text-amber-700 dark:text-amber-400">
@@ -199,13 +257,34 @@ export function NewsPublisher() {
             <Button
               variant="hero"
               onClick={handleSubmit}
-              disabled={!formData.title.trim() || !formData.content.trim() || createNews.isPending}
+              disabled={!formData.title.trim() || !formData.content.trim() || createNews.isPending || updateNews.isPending}
             >
-              Publish
+              {editingNews ? 'Update' : 'Publish'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete News</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this news article? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteId && handleDelete(deleteId)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Broadcast Confirmation Dialog */}
       <AlertDialog open={confirmBroadcastOpen} onOpenChange={setConfirmBroadcastOpen}>
