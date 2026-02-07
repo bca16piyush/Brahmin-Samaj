@@ -498,6 +498,36 @@ export function useCreateNews() {
   });
 }
 
+export function useUpdateNews() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<News> }) => {
+      const { error } = await supabase
+        .from('news')
+        .update(data)
+        .eq('id', id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-news'] });
+      toast({
+        title: 'News Updated',
+        description: 'The news article has been updated successfully.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
 export function useDeleteNews() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
