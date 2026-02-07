@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Users, UserPlus, Upload, Download, Search, CheckCircle, XCircle, Loader2, Pencil, Trash2 } from 'lucide-react';
+import { Users, UserPlus, Upload, Download, Search, CheckCircle, XCircle, Loader2, Pencil, Trash2, Printer } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +14,8 @@ import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { useDeleteUser } from '@/hooks/useAdmin';
 import { generateSecurePassword, sendPasswordResetAfterCreation } from '@/lib/securePassword';
+import { BulkUserImport } from './BulkUserImport';
+import { PrintableReport, printReport } from './PrintableReport';
 
 const SAMPLE_CSV_CONTENT = `name,email,mobile,gotra,father_name,native_village
 Rajesh Sharma,rajesh@example.com,9876543210,Bharadwaj,Ramesh Sharma,Jaipur
@@ -45,6 +47,7 @@ export function UserManager() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const printRef = useRef<HTMLDivElement>(null);
   
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -376,6 +379,10 @@ export function UserManager() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <h2 className="font-heading text-xl font-semibold">User Management</h2>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={() => printReport(printRef)}>
+            <Printer className="w-4 h-4 mr-2" />
+            Print
+          </Button>
           {/* Create User Dialog */}
           <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
             <DialogTrigger asChild>
@@ -801,6 +808,52 @@ export function UserManager() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Bulk User Import */}
+      <BulkUserImport onImportComplete={() => queryClient.invalidateQueries({ queryKey: ['admin-all-users'] })} />
+
+      {/* Printable Report */}
+      <PrintableReport
+        ref={printRef}
+        title="User List Report"
+        subtitle="All Registered Users"
+        stats={[
+          { label: 'Total Users', value: users?.length || 0 },
+          { label: 'Verified', value: verifiedCount },
+          { label: 'Pending', value: pendingCount },
+          { label: 'Unverified', value: signupPendingCount },
+        ]}
+      >
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr>
+              <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Name</th>
+              <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Email</th>
+              <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Mobile</th>
+              <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Status</th>
+              <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Joined</th>
+            </tr>
+          </thead>
+          <tbody>
+            {users?.map(user => (
+              <tr key={user.id}>
+                <td style={{ border: '1px solid #ddd', padding: '8px' }}>{user.name}</td>
+                <td style={{ border: '1px solid #ddd', padding: '8px' }}>{user.email || '-'}</td>
+                <td style={{ border: '1px solid #ddd', padding: '8px' }}>{user.mobile}</td>
+                <td style={{ border: '1px solid #ddd', padding: '8px' }}>
+                  <span className={`badge badge-${user.verification_status}`}>
+                    {user.verification_status === 'verified' ? 'Verified' : 
+                     user.verification_status === 'pending' ? 'Pending' : 'Unverified'}
+                  </span>
+                </td>
+                <td style={{ border: '1px solid #ddd', padding: '8px' }}>
+                  {format(new Date(user.created_at), 'MMM d, yyyy')}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </PrintableReport>
     </div>
   );
 }

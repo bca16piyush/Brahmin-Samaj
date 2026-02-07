@@ -498,6 +498,36 @@ export function useCreateNews() {
   });
 }
 
+export function useDeleteNews() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('news')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-news'] });
+      toast({
+        title: 'News Deleted',
+        description: 'The news article has been deleted.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
 export function useEvents() {
   return useQuery({
     queryKey: ['admin-events'],
