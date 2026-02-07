@@ -50,6 +50,36 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_permissions: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          id: string
+          is_super_admin: boolean
+          permissions: Database["public"]["Enums"]["admin_permission"][]
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_super_admin?: boolean
+          permissions?: Database["public"]["Enums"]["admin_permission"][]
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_super_admin?: boolean
+          permissions?: Database["public"]["Enums"]["admin_permission"][]
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       event_registrations: {
         Row: {
           attended: boolean | null
@@ -899,6 +929,30 @@ export type Database = {
         }
         Relationships: []
       }
+      site_config: {
+        Row: {
+          config_key: string
+          config_value: Json
+          id: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          config_key: string
+          config_value?: Json
+          id?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          config_key?: string
+          config_value?: Json
+          id?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       stock_in: {
         Row: {
           created_at: string | null
@@ -1174,6 +1228,13 @@ export type Database = {
           whatsapp_number: string
         }[]
       }
+      has_admin_permission: {
+        Args: {
+          _permission: Database["public"]["Enums"]["admin_permission"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       has_confirmed_booking: {
         Args: { _pandit_id: string; _user_id: string }
         Returns: boolean
@@ -1185,9 +1246,29 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_super_admin: { Args: { _user_id: string }; Returns: boolean }
       is_verified: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
+      admin_permission:
+        | "overview"
+        | "verifications"
+        | "users"
+        | "pandits"
+        | "bookings"
+        | "donations"
+        | "events"
+        | "registrations"
+        | "news"
+        | "gallery"
+        | "past_videos"
+        | "rooms"
+        | "inventory"
+        | "bulk_whatsapp"
+        | "security"
+        | "audit_logs"
+        | "site_settings"
+        | "team"
       app_role: "admin" | "moderator" | "user"
       booking_status:
         | "pending"
@@ -1325,6 +1406,26 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      admin_permission: [
+        "overview",
+        "verifications",
+        "users",
+        "pandits",
+        "bookings",
+        "donations",
+        "events",
+        "registrations",
+        "news",
+        "gallery",
+        "past_videos",
+        "rooms",
+        "inventory",
+        "bulk_whatsapp",
+        "security",
+        "audit_logs",
+        "site_settings",
+        "team",
+      ],
       app_role: ["admin", "moderator", "user"],
       booking_status: [
         "pending",

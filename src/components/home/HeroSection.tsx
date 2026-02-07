@@ -2,8 +2,13 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Flame, Calendar, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useSiteConfig } from '@/hooks/useSiteConfig';
 import heroImage from '@/assets/hero-temple.jpg';
+
 export function HeroSection() {
+  const { data: config } = useSiteConfig();
+  const ctaButton = config?.homepage_cta_button;
+
   return <section className="relative min-h-[90vh] flex items-center">
       {/* Background Image */}
       <div className="absolute inset-0 z-0">
@@ -38,7 +43,7 @@ export function HeroSection() {
         }} transition={{
           duration: 0.8,
           delay: 0.1
-        }} className="text-2xl lg:text-4xl font-bold text-primary-foreground leading-tight mb-6 text-center font-sans md:text-3xl">विश्वव्यापी आतंकवाद का शमन, हिन्दू राष्ट्र निर्माण एवं विश्व शान्ति हेतु </motion.h1>
+        }} className="text-2xl lg:text-4xl font-bold text-primary-foreground leading-tight mb-6 text-center font-sans md:text-3xl">विश्वव्यापी आतंकवाद का शमन, हिन्दू राष्ट्र निर्माण एवं विश्व शान्ति हेतु </motion.h1>
 
         <motion.p initial={{
           opacity: 0,
@@ -70,11 +75,13 @@ export function HeroSection() {
                 <ArrowRight className="w-5 h-5 ml-1" />
               </Button>
             </Link>
-            <Link to="/about">
-              <Button variant="outline" size="lg" className="w-full sm:w-auto bg-primary-foreground/10 text-primary-foreground border-primary-foreground/30 hover:bg-primary-foreground/20">
-                About Guruji
-              </Button>
-            </Link>
+            {ctaButton?.enabled !== false && (
+              <Link to={ctaButton?.url || '/about'}>
+                <Button variant="outline" size="lg" className="w-full sm:w-auto bg-primary-foreground/10 text-primary-foreground border-primary-foreground/30 hover:bg-primary-foreground/20">
+                  {ctaButton?.text || 'About Guruji'}
+                </Button>
+              </Link>
+            )}
           </motion.div>
 
           {/* Stats */}

@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, AlertTriangle, Bell, Calendar, Users } from 'lucide-react';
+import { Plus, AlertTriangle, Bell, Calendar, Users, Trash2, Printer } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,19 +10,23 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { useNews, useCreateNews } from '@/hooks/useAdmin';
+import { useNews, useCreateNews, useDeleteNews } from '@/hooks/useAdmin';
 import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
+import { PrintableReport, printReport } from './PrintableReport';
 
 export function NewsPublisher() {
   const { data: newsItems, isLoading } = useNews();
   const createNews = useCreateNews();
+  const deleteNews = useDeleteNews();
   const { user } = useAuth();
+  const printRef = useRef<HTMLDivElement>(null);
   
   const [dialogOpen, setDialogOpen] = useState(false);
   const [confirmBroadcastOpen, setConfirmBroadcastOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     content: '',
