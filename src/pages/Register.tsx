@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, CheckCircle, User, Shield, FileCheck, Mail, Lock, Phone } from 'lucide-react';
+import { ArrowRight, CheckCircle, User, Shield, FileCheck, Mail, Lock, Phone, AlertCircle } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { signUpSchema, verificationSchema, cleanMobileNumber } from '@/lib/registrationValidation';
+import { z } from 'zod';
 
 const gotras = [
   'Bharadwaj', 'Kashyap', 'Shandilya', 'Vashishtha', 'Gautam',
@@ -17,9 +19,14 @@ const gotras = [
 
 type Step = 1 | 2 | 3;
 
+type FieldErrors = {
+  [key: string]: string | undefined;
+};
+
 export default function Register() {
   const [step, setStep] = useState<Step>(1);
   const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState<FieldErrors>({});
   const [signUpData, setSignUpData] = useState({
     name: '',
     email: '',
@@ -37,15 +44,69 @@ export default function Register() {
   const { signUp, submitVerification } = useAuth();
   const navigate = useNavigate();
 
+  // Validate a single field and update errors
+  const validateField = (field: string, value: string, schema: z.ZodObject<any>) => {
+    try {
+      schema.shape[field].parse(value);
+      setErrors((prev) => ({ ...prev, [field]: undefined }));
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        setErrors((prev) => ({ ...prev, [field]: error.errors[0]?.message }));
+      }
+    }
+  };
+
+  // Handle input change with validation
+  const handleSignUpChange = (field: keyof typeof signUpData, value: string) => {
+    setSignUpData((prev) => ({ ...prev, [field]: value }));
+    // Debounce validation for better UX
+    if (value.length > 0) {
+      validateField(field, value, signUpSchema);
+    } else {
+      setErrors((prev) => ({ ...prev, [field]: undefined }));
+    }
+  };
+
+  const handleVerificationChange = (field: keyof typeof formData, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    if (value.length > 0 && field !== 'reference_person' && field !== 'reference_mobile') {
+      validateField(field, value, verificationSchema);
+    } else {
+      setErrors((prev) => ({ ...prev, [field]: undefined }));
+    }
+  };
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate all fields
+    const result = signUpSchema.safeParse(signUpData);
+    if (!result.success) {
+      const fieldErrors: FieldErrors = {};
+      result.error.errors.forEach((err) => {
+        const field = err.path[0] as string;
+        fieldErrors[field] = err.message;
+      });
+      setErrors(fieldErrors);
+      toast({
+        title: 'Validation Error',
+        description: 'Please fix the errors in the form',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsLoading(true);
+    setErrors({});
+    
+    // Use cleaned mobile number
+    const cleanedMobile = cleanMobileNumber(signUpData.mobile);
     
     const { error } = await signUp(
-      signUpData.email,
+      signUpData.email.trim(),
       signUpData.password,
-      signUpData.name,
-      signUpData.mobile
+      signUpData.name.trim(),
+      cleanedMobile
     );
     
     if (error) {
@@ -66,15 +127,36 @@ export default function Register() {
 
   const handleSubmitVerification = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate all fields
+    const result = verificationSchema.safeParse(formData);
+    if (!result.success) {
+      const fieldErrors: FieldErrors = {};
+      result.error.errors.forEach((err) => {
+        const field = err.path[0] as string;
+        fieldErrors[field] = err.message;
+      });
+      setErrors(fieldErrors);
+      toast({
+        title: 'Validation Error',
+        description: 'Please fix the errors in the form',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsLoading(true);
+    setErrors({});
+    
+    const cleanedRefMobile = formData.reference_mobile ? cleanMobileNumber(formData.reference_mobile) : '';
     
     const { error } = await submitVerification({
-      name: signUpData.name,
+      name: signUpData.name.trim(),
       gotra: formData.gotra,
-      father_name: formData.father_name,
-      native_village: formData.native_village,
-      reference_person: formData.reference_person,
-      reference_mobile: formData.reference_mobile,
+      father_name: formData.father_name.trim(),
+      native_village: formData.native_village.trim(),
+      reference_person: formData.reference_person.trim(),
+      reference_mobile: cleanedRefMobile,
     });
     
     if (error) {
@@ -91,6 +173,17 @@ export default function Register() {
       });
     }
     setIsLoading(false);
+  };
+
+  // Error display component
+  const FieldError = ({ field }: { field: string }) => {
+    if (!errors[field]) return null;
+    return (
+      <p className="text-sm text-destructive flex items-center gap-1 mt-1">
+        <AlertCircle className="w-3 h-3" />
+        {errors[field]}
+      </p>
+    );
   };
 
   return (
@@ -141,10 +234,11 @@ export default function Register() {
                     <Input
                       id="name"
                       value={signUpData.name}
-                      onChange={(e) => setSignUpData({ ...signUpData, name: e.target.value })}
+                      onChange={(e) => handleSignUpChange('name', e.target.value)}
                       placeholder="Your full name"
-                      required
+                      className={errors.name ? 'border-destructive' : ''}
                     />
+                    <FieldError field="name" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
@@ -154,12 +248,12 @@ export default function Register() {
                         id="email"
                         type="email"
                         value={signUpData.email}
-                        onChange={(e) => setSignUpData({ ...signUpData, email: e.target.value })}
+                        onChange={(e) => handleSignUpChange('email', e.target.value)}
                         placeholder="your@email.com"
-                        className="pl-10"
-                        required
+                        className={`pl-10 ${errors.email ? 'border-destructive' : ''}`}
                       />
                     </div>
+                    <FieldError field="email" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="mobile">Mobile Number</Label>
@@ -169,12 +263,13 @@ export default function Register() {
                         id="mobile"
                         type="tel"
                         value={signUpData.mobile}
-                        onChange={(e) => setSignUpData({ ...signUpData, mobile: e.target.value })}
-                        placeholder="+91 98765 43210"
-                        className="pl-10"
-                        required
+                        onChange={(e) => handleSignUpChange('mobile', e.target.value)}
+                        placeholder="9876543210"
+                        className={`pl-10 ${errors.mobile ? 'border-destructive' : ''}`}
                       />
                     </div>
+                    <FieldError field="mobile" />
+                    <p className="text-xs text-muted-foreground">Enter 10-digit Indian mobile number</p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="password">Password</Label>
@@ -184,13 +279,12 @@ export default function Register() {
                         id="password"
                         type="password"
                         value={signUpData.password}
-                        onChange={(e) => setSignUpData({ ...signUpData, password: e.target.value })}
+                        onChange={(e) => handleSignUpChange('password', e.target.value)}
                         placeholder="••••••••"
-                        className="pl-10"
-                        required
-                        minLength={6}
+                        className={`pl-10 ${errors.password ? 'border-destructive' : ''}`}
                       />
                     </div>
+                    <FieldError field="password" />
                   </div>
                   <Button variant="hero" className="w-full" type="submit" disabled={isLoading}>
                     {isLoading ? 'Creating Account...' : 'Create Account'}
@@ -228,9 +322,9 @@ export default function Register() {
                       <Label htmlFor="gotra">Gotra *</Label>
                       <Select
                         value={formData.gotra}
-                        onValueChange={(value) => setFormData({ ...formData, gotra: value })}
+                        onValueChange={(value) => handleVerificationChange('gotra', value)}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className={errors.gotra ? 'border-destructive' : ''}>
                           <SelectValue placeholder="Select your Gotra" />
                         </SelectTrigger>
                         <SelectContent>
@@ -239,16 +333,18 @@ export default function Register() {
                           ))}
                         </SelectContent>
                       </Select>
+                      <FieldError field="gotra" />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="fatherName">Father's Name *</Label>
                       <Input
                         id="fatherName"
-                        required
                         value={formData.father_name}
-                        onChange={(e) => setFormData({ ...formData, father_name: e.target.value })}
+                        onChange={(e) => handleVerificationChange('father_name', e.target.value)}
                         placeholder="Enter father's name"
+                        className={errors.father_name ? 'border-destructive' : ''}
                       />
+                      <FieldError field="father_name" />
                     </div>
                   </div>
 
@@ -256,11 +352,12 @@ export default function Register() {
                     <Label htmlFor="village">Native Village *</Label>
                     <Input
                       id="village"
-                      required
                       value={formData.native_village}
-                      onChange={(e) => setFormData({ ...formData, native_village: e.target.value })}
+                      onChange={(e) => handleVerificationChange('native_village', e.target.value)}
                       placeholder="Enter native village"
+                      className={errors.native_village ? 'border-destructive' : ''}
                     />
+                    <FieldError field="native_village" />
                   </div>
 
                   <div className="border-t border-border pt-6">
@@ -274,9 +371,11 @@ export default function Register() {
                         <Input
                           id="refName"
                           value={formData.reference_person}
-                          onChange={(e) => setFormData({ ...formData, reference_person: e.target.value })}
+                          onChange={(e) => handleVerificationChange('reference_person', e.target.value)}
                           placeholder="Name of reference person"
+                          className={errors.reference_person ? 'border-destructive' : ''}
                         />
+                        <FieldError field="reference_person" />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="refMobile">Reference Mobile</Label>
@@ -284,9 +383,12 @@ export default function Register() {
                           id="refMobile"
                           type="tel"
                           value={formData.reference_mobile}
-                          onChange={(e) => setFormData({ ...formData, reference_mobile: e.target.value })}
-                          placeholder="Mobile number"
+                          onChange={(e) => handleVerificationChange('reference_mobile', e.target.value)}
+                          placeholder="9876543210"
+                          className={errors.reference_mobile ? 'border-destructive' : ''}
                         />
+                        <FieldError field="reference_mobile" />
+                        <p className="text-xs text-muted-foreground">10-digit Indian mobile number</p>
                       </div>
                     </div>
                   </div>
