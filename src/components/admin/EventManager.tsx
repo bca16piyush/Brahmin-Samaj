@@ -199,14 +199,38 @@ export function EventManager() {
     setFormData({ ...formData, image_url: null });
   };
 
+  // Convert YouTube watch URL to embed format
+  const convertToEmbedUrl = (url: string): string => {
+    if (!url) return '';
+    
+    // Already an embed URL
+    if (url.includes('/embed/')) return url;
+    
+    // Standard watch URL: https://www.youtube.com/watch?v=VIDEO_ID
+    const watchMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+    if (watchMatch) {
+      return `https://www.youtube.com/embed/${watchMatch[1]}`;
+    }
+    
+    // Live URL: https://www.youtube.com/live/VIDEO_ID
+    const liveMatch = url.match(/youtube\.com\/live\/([a-zA-Z0-9_-]{11})/);
+    if (liveMatch) {
+      return `https://www.youtube.com/embed/${liveMatch[1]}`;
+    }
+    
+    return url;
+  };
+
   const handleSubmit = () => {
     if (!formData.title.trim() || !formData.event_date) return;
+
+    const embedUrl = convertToEmbedUrl(formData.youtube_live_url);
 
     const data = {
       title: formData.title,
       description: formData.description,
       location: formData.location,
-      youtube_live_url: formData.youtube_live_url,
+      youtube_live_url: embedUrl,
       is_live: formData.is_live,
       is_featured: formData.is_featured,
       event_type: formData.event_type,
@@ -224,6 +248,23 @@ export function EventManager() {
       createEvent.mutate(data);
     }
     setDialogOpen(false);
+  };
+
+  const handleToggleLive = (event: any) => {
+    const newLiveStatus = !event.is_live;
+    updateEvent.mutate({
+      id: event.id,
+      data: { is_live: newLiveStatus }
+    }, {
+      onSuccess: () => {
+        toast({
+          title: newLiveStatus ? '🔴 Live Started' : 'Live Stopped',
+          description: newLiveStatus 
+            ? `${event.title} is now LIVE!` 
+            : `${event.title} is no longer live.`,
+        });
+      }
+    });
   };
 
   const handleDelete = () => {
@@ -390,7 +431,17 @@ export function EventManager() {
                         </div>
                       )}
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap">
+                      <Button
+                        variant={event.is_live ? "destructive" : "outline"}
+                        size="sm"
+                        onClick={() => handleToggleLive(event)}
+                        disabled={updateEvent.isPending}
+                        className={event.is_live ? "" : "border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"}
+                      >
+                        <Video className="w-4 h-4 mr-1" />
+                        {event.is_live ? 'Stop Live' : 'Go Live'}
+                      </Button>
                       <Button
                         variant="outline"
                         size="sm"
