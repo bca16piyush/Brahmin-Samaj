@@ -581,32 +581,52 @@ export function EventManager() {
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="youtube">YouTube Live URL</Label>
-              <Input
-                id="youtube"
-                value={formData.youtube_live_url}
-                onChange={(e) => setFormData({ ...formData, youtube_live_url: e.target.value })}
-                placeholder="https://youtube.com/watch?v=..."
-              />
-            </div>
-
-            <div className="flex items-center gap-6">
+            {/* YouTube Live Section */}
+            <div className="p-4 rounded-lg border border-destructive/30 bg-destructive/5 space-y-4">
               <div className="flex items-center gap-2">
+                <Video className="w-5 h-5 text-destructive" />
+                <Label className="text-base font-semibold">YouTube Live Streaming</Label>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="youtube">YouTube Live URL</Label>
+                <Input
+                  id="youtube"
+                  value={formData.youtube_live_url}
+                  onChange={(e) => setFormData({ ...formData, youtube_live_url: e.target.value })}
+                  placeholder="https://youtube.com/watch?v=... या https://youtube.com/embed/..."
+                />
+                <p className="text-xs text-muted-foreground">
+                  YouTube video link paste करें। यह URL स्वचालित रूप से embed format में convert हो जाएगा।
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 p-3 rounded-md bg-background border">
                 <Switch
                   id="live"
                   checked={formData.is_live}
                   onCheckedChange={(checked) => setFormData({ ...formData, is_live: checked })}
                 />
-                <Label htmlFor="live">अभी लाइव है</Label>
+                <div>
+                  <Label htmlFor="live" className="cursor-pointer">अभी लाइव है (Mark as LIVE)</Label>
+                  <p className="text-xs text-muted-foreground">
+                    इसे ON करने से यह यज्ञ "Live Now" section में दिखेगा
+                  </p>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Switch
-                  id="featured"
-                  checked={formData.is_featured}
-                  onCheckedChange={(checked) => setFormData({ ...formData, is_featured: checked })}
-                />
-                <Label htmlFor="featured">विशेष यज्ञ</Label>
+            </div>
+
+            <div className="flex items-center gap-2 p-3 rounded-md border">
+              <Switch
+                id="featured"
+                checked={formData.is_featured}
+                onCheckedChange={(checked) => setFormData({ ...formData, is_featured: checked })}
+              />
+              <div>
+                <Label htmlFor="featured" className="cursor-pointer">विशेष यज्ञ (Featured)</Label>
+                <p className="text-xs text-muted-foreground">
+                  इसे ON करने से यह यज्ञ homepage पर highlight होगा
+                </p>
               </div>
             </div>
           </div>
