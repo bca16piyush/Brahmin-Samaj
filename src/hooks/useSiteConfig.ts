@@ -9,8 +9,15 @@ export interface HomepageButton {
   enabled: boolean;
 }
 
+export interface QuickLiveStream {
+  youtube_url: string;
+  title: string;
+  enabled: boolean;
+}
+
 export interface SiteConfig {
   homepage_cta_button: HomepageButton;
+  quick_live_stream: QuickLiveStream;
 }
 
 export function useSiteConfig() {
@@ -41,13 +48,16 @@ export function useUpdateSiteConfig() {
 
   return useMutation({
     mutationFn: async ({ key, value }: { key: string; value: any }) => {
+      // Use upsert to handle both insert and update
       const { error } = await supabase
         .from('site_config')
-        .update({ 
+        .upsert({ 
+          config_key: key,
           config_value: value,
           updated_by: user?.id,
-        })
-        .eq('config_key', key);
+        }, {
+          onConflict: 'config_key'
+        });
       
       if (error) throw error;
     },

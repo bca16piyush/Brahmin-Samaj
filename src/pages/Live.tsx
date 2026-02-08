@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLiveStream } from '@/hooks/useLiveStream';
+import { useSiteConfig } from '@/hooks/useSiteConfig';
 import { Link } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -29,6 +30,13 @@ function getYouTubeEmbedUrl(url: string | null): string | null {
 export default function Live() {
   const { isVerified } = useAuth();
   const { liveEvents, upcomingEvents, isLoading, isLive } = useLiveStream();
+  const { data: siteConfig, isLoading: isLoadingConfig } = useSiteConfig();
+  
+  // Check for quick live stream from site settings
+  const quickLiveStream = siteConfig?.quick_live_stream;
+  const hasQuickLive = quickLiveStream?.enabled && quickLiveStream?.youtube_url;
+  const totalLiveCount = liveEvents.length + (hasQuickLive ? 1 : 0);
+  const isAnyLive = isLive || hasQuickLive;
 
   return (
     <Layout>
@@ -40,13 +48,13 @@ export default function Live() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               className={`inline-flex items-center gap-2 px-4 py-1 rounded-full text-sm font-medium mb-4 ${
-                isLive 
+                isAnyLive 
                   ? 'bg-destructive/10 text-destructive' 
                   : 'bg-muted text-muted-foreground'
               }`}
             >
-              {isLive && <span className="w-2 h-2 rounded-full bg-destructive animate-pulse" />}
-              {isLive ? `${liveEvents.length} Live Now` : 'Live Streaming'}
+              {isAnyLive && <span className="w-2 h-2 rounded-full bg-destructive animate-pulse" />}
+              {isAnyLive ? `${totalLiveCount} Live Now` : 'Live Streaming'}
             </motion.span>
             <motion.h1
               initial={{ opacity: 0, y: 20 }}
@@ -67,7 +75,7 @@ export default function Live() {
           </div>
 
           {/* Loading State */}
-          {isLoading && (
+          {(isLoading || isLoadingConfig) && (
             <div className="max-w-4xl mx-auto space-y-6">
               <Skeleton className="w-full aspect-video rounded-2xl" />
               <Skeleton className="w-full h-24 rounded-xl" />
@@ -75,7 +83,7 @@ export default function Live() {
           )}
 
           {/* Not Verified Message */}
-          {!isLoading && !isVerified && (
+          {!isLoading && !isLoadingConfig && !isVerified && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -99,6 +107,43 @@ export default function Live() {
                     </Button>
                   </Link>
                 </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Quick Live Stream from Site Settings */}
+          {!isLoading && !isLoadingConfig && isVerified && hasQuickLive && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="max-w-4xl mx-auto mb-8"
+            >
+              {/* Video Player */}
+              <div className="relative aspect-video rounded-2xl overflow-hidden bg-maroon shadow-temple">
+                <iframe
+                  src={quickLiveStream.youtube_url}
+                  className="w-full h-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+                <div className="absolute top-4 left-4 flex items-center gap-2 px-3 py-1 bg-destructive text-destructive-foreground rounded-full text-sm font-medium">
+                  <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                  LIVE
+                </div>
+              </div>
+
+              {/* Stream Info */}
+              <div className="mt-4 p-4 rounded-xl bg-card border border-border">
+                <div className="flex items-center gap-2 mb-2">
+                  <h3 className="font-heading text-lg font-semibold">{quickLiveStream.title || 'Live Stream'}</h3>
+                  <Badge variant="destructive" className="animate-pulse">
+                    LIVE
+                  </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Watch our live broadcast right now
+                </p>
               </div>
             </motion.div>
           )}
@@ -205,7 +250,7 @@ export default function Live() {
           )}
 
           {/* No Live Events */}
-          {!isLoading && isVerified && !isLive && (
+          {!isLoading && !isLoadingConfig && isVerified && !isAnyLive && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
