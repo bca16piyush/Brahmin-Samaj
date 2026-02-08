@@ -652,6 +652,25 @@ export function EventManager() {
                 </p>
               </div>
 
+              {/* YouTube Embed Preview */}
+              {formData.youtube_live_url && convertToEmbedUrl(formData.youtube_live_url) && (
+                <div className="space-y-2">
+                  <Label className="text-sm">Preview</Label>
+                  <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-black">
+                    <iframe
+                      src={convertToEmbedUrl(formData.youtube_live_url)}
+                      title="YouTube video preview"
+                      className="absolute inset-0 w-full h-full"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Embed URL: <code className="bg-background px-1 py-0.5 rounded text-xs">{convertToEmbedUrl(formData.youtube_live_url)}</code>
+                  </p>
+                </div>
+              )}
+
               <div className="flex items-center gap-2 p-3 rounded-md bg-background border">
                 <Switch
                   id="live"
