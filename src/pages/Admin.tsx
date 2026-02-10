@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Users, UserCheck, Gift, Newspaper, Calendar, User2, LayoutDashboard, CalendarCheck, ClipboardList, UsersRound, Image, FileText, Shield, Package, Bed, Send, Video, Settings, UserCog } from 'lucide-react';
+import { Users, UserCheck, Gift, Newspaper, Calendar, User2, LayoutDashboard, CalendarCheck, ClipboardList, UsersRound, Image, FileText, Shield, Package, Bed, Send, Video, Settings, UserCog, BarChart3 } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
@@ -24,6 +24,7 @@ import { BulkWhatsAppMessaging } from '@/components/admin/BulkWhatsAppMessaging'
 import { PastEventVideoManager } from '@/components/admin/PastEventVideoManager';
 import { TeamManager } from '@/components/admin/TeamManager';
 import { SiteSettings } from '@/components/admin/SiteSettings';
+import { CrowdAnalytics } from '@/components/admin/CrowdAnalytics';
 
 export default function Admin() {
   const {
@@ -125,6 +126,10 @@ export default function Admin() {
                 <Send className="w-4 h-4" />
                 <span className="hidden sm:inline">Bulk WhatsApp</span>
               </TabsTrigger>
+              <TabsTrigger value="crowd" className="flex items-center gap-2">
+                <BarChart3 className="w-4 h-4" />
+                <span className="hidden sm:inline">Crowd Tracker</span>
+              </TabsTrigger>
               {/* Super Admin only tabs */}
               {permissions?.is_super_admin && (
                 <>
@@ -202,6 +207,10 @@ export default function Admin() {
 
             <TabsContent value="bulk-whatsapp">
               <BulkWhatsAppMessaging />
+            </TabsContent>
+
+            <TabsContent value="crowd">
+              <CrowdAnalytics />
             </TabsContent>
 
             {permissions?.is_super_admin && (

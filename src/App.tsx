@@ -24,6 +24,8 @@ import NotFound from "./pages/NotFound";
 import UpcomingEvents from "./pages/UpcomingEvents";
 import PastEventLive from "./pages/PastEventLive";
 import NewsEvents from "./pages/NewsEvents";
+import MyPass from "./pages/MyPass";
+import VerifyPage from "./pages/Verify";
 
 const queryClient = new QueryClient();
 
@@ -55,6 +57,8 @@ const App = () => (
             <Route path="/admin" element={<Admin />} />
             <Route path="/my-bookings" element={<MyBookings />} />
             <Route path="/rooms" element={<Rooms />} />
+            <Route path="/my-pass" element={<MyPass />} />
+            <Route path="/verify" element={<VerifyPage />} />
             <Route path="/install" element={<Install />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="*" element={<NotFound />} />
