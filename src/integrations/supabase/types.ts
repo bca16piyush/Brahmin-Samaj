@@ -80,6 +80,59 @@ export type Database = {
         }
         Relationships: []
       }
+      booth_locations: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+        }
+        Relationships: []
+      }
+      event_logs: {
+        Row: {
+          booth_location: string
+          id: string
+          scanned_at: string
+          scanned_by: string
+          user_id: string
+        }
+        Insert: {
+          booth_location: string
+          id?: string
+          scanned_at?: string
+          scanned_by: string
+          user_id: string
+        }
+        Update: {
+          booth_location?: string
+          id?: string
+          scanned_at?: string
+          scanned_by?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_registrations: {
         Row: {
           attended: boolean | null

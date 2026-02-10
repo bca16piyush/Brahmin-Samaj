@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, User, LogIn, CalendarCheck } from 'lucide-react';
+import { Menu, X, User, LogIn, CalendarCheck, Ticket } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -69,6 +69,12 @@ export function Navbar() {
                   <Button variant="ghost" size="sm">
                     <CalendarCheck className="w-4 h-4 mr-1" />
                     My Bookings
+                  </Button>
+                </Link>
+                <Link to="/my-pass">
+                  <Button variant="ghost" size="sm">
+                    <Ticket className="w-4 h-4 mr-1" />
+                    My Pass
                   </Button>
                 </Link>
                 <div className="text-right">
@@ -147,6 +153,12 @@ export function Navbar() {
                         <Button variant="outline" className="w-full mb-2">
                           <CalendarCheck className="w-4 h-4 mr-2" />
                           My Bookings
+                        </Button>
+                      </Link>
+                      <Link to="/my-pass" onClick={() => setIsOpen(false)}>
+                        <Button variant="outline" className="w-full mb-2">
+                          <Ticket className="w-4 h-4 mr-2" />
+                          My Pass
                         </Button>
                       </Link>
                       <Button variant="outline" className="w-full" onClick={() => { signOut(); setIsOpen(false); }}>
