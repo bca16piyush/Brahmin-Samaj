@@ -29,7 +29,7 @@ interface AuthContextType {
   isVerified: boolean;
   isAdmin: boolean;
   isLoading: boolean;
-  signUp: (email: string, password: string, name: string, mobile: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, name: string, mobile: string, aadhaarLast4?: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   submitVerification: (data: Partial<Profile>) => Promise<{ error: Error | null }>;
@@ -134,14 +134,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, name: string, mobile: string) => {
+  const signUp = async (email: string, password: string, name: string, mobile: string, aadhaarLast4?: string) => {
     try {
       // Validate input - throws on validation failure
       const validated = validateOrThrow(signUpSchema, { email, password, name, mobile });
       
       const redirectUrl = `${window.location.origin}/`;
       
-      const { error } = await supabase.auth.signUp({
+      const { data: signUpData, error } = await supabase.auth.signUp({
         email: validated.email,
         password: validated.password,
         options: {
@@ -154,6 +154,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       
       if (error) return { error };
+
+      // Store aadhaar_last4 in profile if provided
+      if (aadhaarLast4 && signUpData.user) {
+        await supabase
+          .from('profiles')
+          .update({ aadhaar_last4: aadhaarLast4 } as any)
+          .eq('id', signUpData.user.id);
+      }
+
       return { error: null };
     } catch (error) {
       return { error: error as Error };

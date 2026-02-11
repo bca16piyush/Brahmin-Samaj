@@ -40,6 +40,10 @@ export const signUpSchema = z.object({
       (val) => indianMobileRegex.test(val),
       'Please enter a valid 10-digit Indian mobile number'
     ),
+  aadhaar: z
+    .string()
+    .min(1, 'Aadhaar number is required')
+    .regex(/^\d{12}$/, 'Please enter a valid 12-digit Aadhaar number'),
 });
 
 export const verificationSchema = z.object({
