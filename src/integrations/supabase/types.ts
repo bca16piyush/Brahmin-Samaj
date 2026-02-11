@@ -704,6 +704,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          aadhaar_last4: string | null
           avatar_url: string | null
           created_at: string | null
           email: string | null
@@ -722,6 +723,7 @@ export type Database = {
             | null
         }
         Insert: {
+          aadhaar_last4?: string | null
           avatar_url?: string | null
           created_at?: string | null
           email?: string | null
@@ -740,6 +742,7 @@ export type Database = {
             | null
         }
         Update: {
+          aadhaar_last4?: string | null
           avatar_url?: string | null
           created_at?: string | null
           email?: string | null

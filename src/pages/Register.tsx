@@ -32,6 +32,7 @@ export default function Register() {
     email: '',
     password: '',
     mobile: '',
+    aadhaar: '',
   });
   const [formData, setFormData] = useState({
     gotra: '',
@@ -101,12 +102,15 @@ export default function Register() {
     
     // Use cleaned mobile number
     const cleanedMobile = cleanMobileNumber(signUpData.mobile);
+    // Only store last 4 digits of Aadhaar
+    const aadhaarLast4 = signUpData.aadhaar.slice(-4);
     
     const { error } = await signUp(
       signUpData.email.trim(),
       signUpData.password,
       signUpData.name.trim(),
-      cleanedMobile
+      cleanedMobile,
+      aadhaarLast4
     );
     
     if (error) {
@@ -270,6 +274,21 @@ export default function Register() {
                     </div>
                     <FieldError field="mobile" />
                     <p className="text-xs text-muted-foreground">Enter 10-digit Indian mobile number</p>
+                  </div>
+                   <div className="space-y-2">
+                    <Label htmlFor="aadhaar">Aadhaar Number *</Label>
+                    <Input
+                      id="aadhaar"
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={12}
+                      value={signUpData.aadhaar}
+                      onChange={(e) => handleSignUpChange('aadhaar', e.target.value.replace(/\D/g, ''))}
+                      placeholder="123456789012"
+                      className={errors.aadhaar ? 'border-destructive' : ''}
+                    />
+                    <FieldError field="aadhaar" />
+                    <p className="text-xs text-muted-foreground">Only last 4 digits will be stored for security</p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="password">Password</Label>
