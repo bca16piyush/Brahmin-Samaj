@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import QRCode from 'react-qr-code';
@@ -7,17 +7,50 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { User, ShieldCheck } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { User, ShieldCheck, Download } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 export default function MyPass() {
   const { isAuthenticated, isLoading, profile, isVerified } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const cardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       navigate('/login');
     }
   }, [isLoading, isAuthenticated, navigate]);
+
+  const downloadAsPDF = useCallback(async () => {
+    if (!cardRef.current) return;
+    try {
+      const { default: html2canvas } = await import('html2canvas');
+      const { default: jsPDF } = await import('jspdf');
+      
+      const canvas = await html2canvas(cardRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+      });
+      
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: [95, 140],
+      });
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, 95, 140);
+      pdf.save(`Mahayagya-Pass-${(profile as any)?.registration_uid || 'pass'}.pdf`);
+      
+      toast({ title: 'Pass downloaded successfully!' });
+    } catch (err) {
+      console.error('PDF generation error:', err);
+      toast({ title: 'Download failed', description: 'Please try again', variant: 'destructive' });
+    }
+  }, [profile, toast]);
 
   if (isLoading) {
     return (
@@ -42,7 +75,7 @@ export default function MyPass() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <Card className="w-[340px] sm:w-[380px] overflow-hidden border-2 border-primary/30 shadow-temple">
+            <Card ref={cardRef} className="w-[340px] sm:w-[380px] overflow-hidden border-2 border-primary/30 shadow-temple">
               {/* Header */}
               <div className="bg-gradient-saffron px-6 py-4 text-center">
                 <div className="flex items-center justify-center gap-2 mb-1">
@@ -107,6 +140,15 @@ export default function MyPass() {
                 </p>
               </div>
             </Card>
+
+            {/* Download Button */}
+            <div className="mt-6 flex justify-center">
+              <Button onClick={downloadAsPDF} className="bg-gradient-saffron text-primary-foreground gap-2">
+                <Download className="w-4 h-4" />
+                Download Pass (PDF)
+              </Button>
+            </div>
+
           </motion.div>
         </div>
       </section>

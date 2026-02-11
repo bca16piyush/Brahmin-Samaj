@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
+import { BoothLocationManager } from './BoothLocationManager';
 
 export function CrowdAnalytics() {
   const [dateFilter, setDateFilter] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -195,6 +196,8 @@ export function CrowdAnalytics() {
           )}
         </CardContent>
       </Card>
+      {/* Booth Location Management */}
+      <BoothLocationManager />
     </div>
   );
 }
