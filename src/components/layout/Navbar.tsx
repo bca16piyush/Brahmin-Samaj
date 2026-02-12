@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X, User, LogIn, CalendarCheck, Ticket } from 'lucide-react';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -77,6 +78,7 @@ export function Navbar() {
                     My Pass
                   </Button>
                 </Link>
+                <NotificationBell />
                 <div className="text-right">
                   <p className="text-sm font-medium">{profile?.name}</p>
                   <p className="text-xs text-muted-foreground capitalize">

@@ -59,6 +59,7 @@ const App = () => (
             <Route path="/rooms" element={<Rooms />} />
             <Route path="/my-pass" element={<MyPass />} />
             <Route path="/verify" element={<VerifyPage />} />
+            <Route path="/verify-entry" element={<VerifyPage />} />
             <Route path="/install" element={<Install />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="*" element={<NotFound />} />

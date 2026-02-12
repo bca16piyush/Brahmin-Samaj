@@ -42,7 +42,7 @@ export function usePushNotifications() {
   const checkSubscription = async () => {
     try {
       const registration = await navigator.serviceWorker.ready;
-      const existingSubscription = await registration.pushManager.getSubscription();
+      const existingSubscription = await (registration as any).pushManager?.getSubscription();
       
       if (existingSubscription) {
         setSubscription(existingSubscription);
@@ -87,7 +87,7 @@ export function usePushNotifications() {
       // Only try to subscribe to push if we have a VAPID key
       if (VAPID_PUBLIC_KEY) {
         try {
-          pushSubscription = await registration.pushManager.subscribe({
+          pushSubscription = await (registration as any).pushManager.subscribe({
             userVisibleOnly: true,
             applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
           });

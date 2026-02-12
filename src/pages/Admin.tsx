@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Users, UserCheck, Gift, Newspaper, Calendar, User2, LayoutDashboard, CalendarCheck, ClipboardList, UsersRound, Image, FileText, Shield, Package, Bed, Send, Video, Settings, UserCog, BarChart3 } from 'lucide-react';
+import { Users, UserCheck, Gift, Newspaper, Calendar, User2, LayoutDashboard, CalendarCheck, ClipboardList, UsersRound, Image, FileText, Shield, Package, Bed, Send, Video, Settings, UserCog, BarChart3, Building2 } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
@@ -25,6 +25,7 @@ import { PastEventVideoManager } from '@/components/admin/PastEventVideoManager'
 import { TeamManager } from '@/components/admin/TeamManager';
 import { SiteSettings } from '@/components/admin/SiteSettings';
 import { CrowdAnalytics } from '@/components/admin/CrowdAnalytics';
+import { AccommodationManager } from '@/components/admin/AccommodationManager';
 
 export default function Admin() {
   const {
@@ -122,6 +123,10 @@ export default function Admin() {
                 <Package className="w-4 h-4" />
                 <span className="hidden sm:inline">Inventory</span>
               </TabsTrigger>
+              <TabsTrigger value="accommodation" className="flex items-center gap-2">
+                <Building2 className="w-4 h-4" />
+                <span className="hidden sm:inline">Accommodation</span>
+              </TabsTrigger>
               <TabsTrigger value="bulk-whatsapp" className="flex items-center gap-2">
                 <Send className="w-4 h-4" />
                 <span className="hidden sm:inline">Bulk WhatsApp</span>
@@ -211,6 +216,10 @@ export default function Admin() {
 
             <TabsContent value="crowd">
               <CrowdAnalytics />
+            </TabsContent>
+
+            <TabsContent value="accommodation">
+              <AccommodationManager />
             </TabsContent>
 
             {permissions?.is_super_admin && (
