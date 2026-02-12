@@ -21,7 +21,7 @@ type ScanResult = {
 };
 
 export default function Verify() {
-  const { isAdmin, isAuthenticated, isLoading } = useAuth();
+  const { isAdmin, isAuthenticated, isLoading, user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -29,14 +29,29 @@ export default function Verify() {
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isVolunteer, setIsVolunteer] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const successAudioRef = useRef<HTMLAudioElement | null>(null);
 
+  // Check if user is admin or volunteer
   useEffect(() => {
-    if (!isLoading && (!isAuthenticated || !isAdmin)) {
-      navigate('/');
-    }
-  }, [isLoading, isAuthenticated, isAdmin, navigate]);
+    const checkAccess = async () => {
+      if (!user) return;
+      const { data } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .in('role', ['admin', 'volunteer']);
+      
+      const hasAccess = data && data.length > 0;
+      setIsVolunteer(hasAccess || false);
+      
+      if (!isLoading && (!isAuthenticated || (!isAdmin && !hasAccess))) {
+        navigate('/');
+      }
+    };
+    if (!isLoading) checkAccess();
+  }, [isLoading, isAuthenticated, isAdmin, user, navigate]);
 
   // Create success audio
   useEffect(() => {
@@ -105,14 +120,15 @@ export default function Verify() {
         await scannerRef.current.pause(true);
       }
 
-      // Look up user by registration_uid
-      const { data: profile, error: profileError } = await (supabase
+      // Look up user by ID (QR now stores user.id)
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select('id, name, avatar_url, registration_uid') as any)
-        .eq('registration_uid', scannedUid)
-        .maybeSingle() as { data: { id: string; name: string; avatar_url: string | null; registration_uid: string } | null; error: any };
+        .select('id, name, avatar_url')
+        .eq('id', scannedUid)
+        .maybeSingle();
 
-      if (profileError || !profile) {
+      const foundProfile = profileData as { id: string; name: string; avatar_url: string | null } | null;
+      if (profileError || !foundProfile) {
         playErrorSound();
         setScanResult({
           status: 'invalid',
@@ -128,7 +144,7 @@ export default function Verify() {
       const { data: recentScan } = await supabase
         .from('event_logs')
         .select('id')
-        .eq('user_id', profile.id)
+        .eq('user_id', foundProfile.id)
         .eq('booth_location', selectedBooth)
         .gte('scanned_at', fiveMinAgo)
         .maybeSingle();
@@ -137,7 +153,7 @@ export default function Verify() {
         playErrorSound();
         setScanResult({
           status: 'duplicate',
-          userName: profile.name,
+          userName: foundProfile.name,
           uid: scannedUid,
           message: 'Already Scanned Recently (within 5 minutes)',
         });
@@ -150,7 +166,7 @@ export default function Verify() {
       const { error: insertError } = await supabase
         .from('event_logs')
         .insert({
-          user_id: profile.id,
+          user_id: foundProfile.id,
           booth_location: selectedBooth,
           scanned_by: user!.id,
         });
@@ -168,7 +184,7 @@ export default function Verify() {
       playSuccessSound();
       setScanResult({
         status: 'success',
-        userName: profile.name,
+        userName: foundProfile.name,
         uid: scannedUid,
         message: 'Entry Verified Successfully!',
       });

@@ -8,14 +8,19 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { User, ShieldCheck, Download } from 'lucide-react';
+import { User, ShieldCheck, Download, Bed, MapPin, Bell } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useMyAllocation } from '@/hooks/useAccommodation';
+import { useUserNotifications, useMarkNotificationRead } from '@/hooks/useUserNotifications';
+import { formatDistanceToNow } from 'date-fns';
 
 export default function MyPass() {
   const { isAuthenticated, isLoading, profile, isVerified } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const cardRef = useRef<HTMLDivElement>(null);
+  const { data: allocation } = useMyAllocation();
+  const { data: notifications } = useUserNotifications();
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -39,11 +44,11 @@ export default function MyPass() {
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
-        format: [95, 140],
+        format: [95, 160],
       });
       
-      pdf.addImage(imgData, 'PNG', 0, 0, 95, 140);
-      pdf.save(`Mahayagya-Pass-${(profile as any)?.registration_uid || 'pass'}.pdf`);
+      pdf.addImage(imgData, 'PNG', 0, 0, 95, 160);
+      pdf.save(`Mahayagya-Pass-${profile?.id?.slice(0, 8) || 'pass'}.pdf`);
       
       toast({ title: 'Pass downloaded successfully!' });
     } catch (err) {
@@ -64,7 +69,9 @@ export default function MyPass() {
 
   if (!profile) return null;
 
-  const uid = (profile as any).registration_uid || 'N/A';
+  const uid = profile.id?.slice(0, 8).toUpperCase() || 'N/A';
+  const roomNumber = (allocation as any)?.rooms?.room_number;
+  const locationName = (allocation as any)?.rooms?.accommodation_locations?.name;
 
   return (
     <Layout>
@@ -123,9 +130,26 @@ export default function MyPass() {
                   <p className="font-heading text-2xl font-bold tracking-widest text-foreground">{uid}</p>
                 </div>
 
+                {/* Room Assignment - My Stay */}
+                {roomNumber && (
+                  <div className="w-full bg-primary/5 border border-primary/20 rounded-xl py-3 px-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Bed className="w-4 h-4 text-primary" />
+                      <span className="text-xs font-medium text-primary">My Stay</span>
+                    </div>
+                    <p className="font-heading text-lg font-bold text-foreground">Room {roomNumber}</p>
+                    {locationName && (
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <MapPin className="w-3 h-3 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground">{locationName}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* QR Code */}
                 <div className="bg-white p-4 rounded-xl shadow-sm">
-                  <QRCode value={uid} size={180} level="H" />
+                  <QRCode value={profile.id || uid} size={180} level="H" />
                 </div>
 
                 <p className="text-xs text-muted-foreground text-center">
@@ -148,6 +172,27 @@ export default function MyPass() {
                 Download Pass (PDF)
               </Button>
             </div>
+
+            {/* Notifications Section */}
+            {notifications && notifications.length > 0 && (
+              <div className="mt-8 w-full max-w-md">
+                <div className="flex items-center gap-2 mb-3">
+                  <Bell className="w-4 h-4 text-primary" />
+                  <h3 className="font-heading font-semibold text-foreground">Recent Notifications</h3>
+                </div>
+                <div className="space-y-2">
+                  {notifications.slice(0, 5).map(n => (
+                    <div key={n.id} className={`p-3 rounded-lg border border-border ${!n.is_read ? 'bg-primary/5' : 'bg-card'}`}>
+                      <p className="text-sm font-medium text-foreground">{n.title}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{n.message}</p>
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
           </motion.div>
         </div>

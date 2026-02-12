@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      accommodation_locations: {
+        Row: {
+          address: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          address?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       admin_audit_logs: {
         Row: {
           action: string
@@ -786,6 +816,53 @@ export type Database = {
         }
         Relationships: []
       }
+      room_allocations: {
+        Row: {
+          allocated_by: string | null
+          check_in_date: string | null
+          check_out_date: string | null
+          created_at: string | null
+          id: string
+          notes: string | null
+          room_id: string
+          status: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          allocated_by?: string | null
+          check_in_date?: string | null
+          check_out_date?: string | null
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          room_id: string
+          status?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          allocated_by?: string | null
+          check_in_date?: string | null
+          check_out_date?: string | null
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          room_id?: string
+          status?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "room_allocations_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       room_bookings: {
         Row: {
           admin_notes: string | null
@@ -886,45 +963,64 @@ export type Database = {
       }
       rooms: {
         Row: {
+          ac_type: string | null
           blocked_reason: string | null
           blocked_until: string | null
+          capacity: number | null
           created_at: string | null
           floor: number | null
           id: string
           is_active: boolean | null
           is_blocked: boolean | null
+          location_id: string | null
           notes: string | null
           room_number: string
           room_type_id: string
+          status: string | null
           updated_at: string | null
         }
         Insert: {
+          ac_type?: string | null
           blocked_reason?: string | null
           blocked_until?: string | null
+          capacity?: number | null
           created_at?: string | null
           floor?: number | null
           id?: string
           is_active?: boolean | null
           is_blocked?: boolean | null
+          location_id?: string | null
           notes?: string | null
           room_number: string
           room_type_id: string
+          status?: string | null
           updated_at?: string | null
         }
         Update: {
+          ac_type?: string | null
           blocked_reason?: string | null
           blocked_until?: string | null
+          capacity?: number | null
           created_at?: string | null
           floor?: number | null
           id?: string
           is_active?: boolean | null
           is_blocked?: boolean | null
+          location_id?: string | null
           notes?: string | null
           room_number?: string
           room_type_id?: string
+          status?: string | null
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "rooms_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "accommodation_locations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "rooms_room_type_id_fkey"
             columns: ["room_type_id"]
@@ -1107,6 +1203,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_notifications: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_read: boolean | null
+          message: string
+          metadata: Json | null
+          title: string
+          type: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          message: string
+          metadata?: Json | null
+          title: string
+          type?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          message?: string
+          metadata?: Json | null
+          title?: string
+          type?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
@@ -1325,7 +1454,7 @@ export type Database = {
         | "audit_logs"
         | "site_settings"
         | "team"
-      app_role: "admin" | "moderator" | "user"
+      app_role: "admin" | "moderator" | "user" | "volunteer"
       booking_status:
         | "pending"
         | "confirmed"
@@ -1482,7 +1611,7 @@ export const Constants = {
         "site_settings",
         "team",
       ],
-      app_role: ["admin", "moderator", "user"],
+      app_role: ["admin", "moderator", "user", "volunteer"],
       booking_status: [
         "pending",
         "confirmed",
