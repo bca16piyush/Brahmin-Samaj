@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Users, UserPlus, Upload, Download, Search, CheckCircle, XCircle, Loader2, Pencil, Trash2, Printer } from 'lucide-react';
+import { Users, UserPlus, Upload, Download, Search, CheckCircle, XCircle, Loader2, Pencil, Trash2, Printer, ShieldCheck } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -74,6 +74,52 @@ export function UserManager() {
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data;
+    },
+  });
+
+  // Fetch volunteer roles
+  const { data: volunteerRoles } = useQuery({
+    queryKey: ['admin-volunteer-roles'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('user_id, role')
+        .eq('role', 'volunteer');
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const volunteerUserIds = new Set(volunteerRoles?.map(r => r.user_id) || []);
+
+  // Toggle volunteer role mutation
+  const toggleVolunteer = useMutation({
+    mutationFn: async ({ userId, isVolunteer }: { userId: string; isVolunteer: boolean }) => {
+      if (isVolunteer) {
+        // Remove volunteer role
+        const { error } = await supabase
+          .from('user_roles')
+          .delete()
+          .eq('user_id', userId)
+          .eq('role', 'volunteer');
+        if (error) throw error;
+      } else {
+        // Add volunteer role
+        const { error } = await supabase
+          .from('user_roles')
+          .insert({ user_id: userId, role: 'volunteer' as any });
+        if (error) throw error;
+      }
+    },
+    onSuccess: (_, { isVolunteer, userId }) => {
+      queryClient.invalidateQueries({ queryKey: ['admin-volunteer-roles'] });
+      toast({
+        title: isVolunteer ? 'Volunteer Role Removed' : 'Volunteer Role Assigned',
+        description: isVolunteer ? 'User is no longer a volunteer.' : 'User can now access the scanner.',
+      });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
     },
   });
 
@@ -647,7 +693,7 @@ export function UserManager() {
                   <div className="col-span-2 font-medium truncate">{user.name}</div>
                   <div className="col-span-3 text-sm text-muted-foreground truncate">{user.email || '-'}</div>
                   <div className="col-span-2 text-sm text-muted-foreground">{user.mobile}</div>
-                  <div className="col-span-2">
+                <div className="col-span-2">
                     <Badge
                       variant={
                         user.verification_status === 'verified' ? 'default' :
@@ -660,11 +706,27 @@ export function UserManager() {
                        user.verification_status === 'pending' ? 'Verification Pending' :
                        user.verification_status || 'none'}
                     </Badge>
+                    {volunteerUserIds.has(user.id) && (
+                      <Badge variant="secondary" className="text-xs ml-1 bg-accent text-accent-foreground">
+                        <ShieldCheck className="w-3 h-3 mr-0.5" />
+                        Volunteer
+                      </Badge>
+                    )}
                   </div>
                   <div className="col-span-2 text-sm text-muted-foreground">
                     {format(new Date(user.created_at), 'MMM d, yyyy')}
                   </div>
                   <div className="col-span-1 flex items-center gap-1">
+                    <Button
+                      variant={volunteerUserIds.has(user.id) ? "secondary" : "ghost"}
+                      size="icon"
+                      className="h-8 w-8"
+                      title={volunteerUserIds.has(user.id) ? "Remove volunteer role" : "Assign volunteer role"}
+                      onClick={() => toggleVolunteer.mutate({ userId: user.id, isVolunteer: volunteerUserIds.has(user.id) })}
+                      disabled={toggleVolunteer.isPending}
+                    >
+                      <ShieldCheck className="h-4 w-4" />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon"
