@@ -1,1 +1,4 @@
 project_id = "smxpiejehkqotyydkahj"
+
+[functions.send-low-stock-alerts]
+verify_jwt = false
