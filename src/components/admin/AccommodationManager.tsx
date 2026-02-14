@@ -526,9 +526,10 @@ export function AccommodationManager() {
                   <Button size="sm" className="gap-2"><Plus className="h-4 w-4" />Add Location</Button>
                 </DialogTrigger>
                 <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Add Location</DialogTitle>
-                  </DialogHeader>
+                   <DialogHeader>
+                     <DialogTitle>Add Location</DialogTitle>
+                     <DialogDescription>Add a new venue or lodging area</DialogDescription>
+                   </DialogHeader>
                   <div className="space-y-4 pt-2">
                     <div className="space-y-2">
                       <Label>Name</Label>
