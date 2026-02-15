@@ -1376,6 +1376,15 @@ export type Database = {
       }
     }
     Functions: {
+      check_allocation_availability: {
+        Args: {
+          _check_in: string
+          _check_out: string
+          _exclude_allocation_id?: string
+          _room_id: string
+        }
+        Returns: boolean
+      }
       check_rate_limit: {
         Args: {
           _action: string

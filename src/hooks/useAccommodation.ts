@@ -40,6 +40,43 @@ export function useAccommodationRooms(locationId?: string) {
   });
 }
 
+// Fetch rooms available for specific date range
+export function useAvailableRoomsForDates(checkIn?: string, checkOut?: string, locationId?: string) {
+  return useQuery({
+    queryKey: ['available-rooms-dates', checkIn, checkOut, locationId],
+    enabled: !!checkIn && !!checkOut,
+    queryFn: async () => {
+      // Get all active rooms
+      let query = supabase
+        .from('rooms')
+        .select('*, accommodation_locations(*)')
+        .not('location_id', 'is', null)
+        .eq('is_active', true)
+        .order('room_number');
+
+      if (locationId) {
+        query = query.eq('location_id', locationId);
+      }
+
+      const { data: allRooms, error: roomsError } = await query;
+      if (roomsError) throw roomsError;
+
+      // Get conflicting allocations for the date range
+      const { data: conflicting, error: allocError } = await supabase
+        .from('room_allocations')
+        .select('room_id')
+        .eq('status', 'active')
+        .lt('check_in_date', checkOut!)
+        .gt('check_out_date', checkIn!);
+
+      if (allocError) throw allocError;
+
+      const occupiedRoomIds = new Set((conflicting || []).map(a => a.room_id));
+      return (allRooms || []).filter(r => !occupiedRoomIds.has(r.id));
+    },
+  });
+}
+
 // Fetch all room allocations with user & room info
 export function useRoomAllocations() {
   return useQuery({
@@ -51,7 +88,6 @@ export function useRoomAllocations() {
         .order('created_at', { ascending: false });
       if (error) throw error;
 
-      // Fetch profile names separately
       const userIds = [...new Set((data || []).map(a => a.user_id))];
       if (userIds.length === 0) return data?.map(a => ({ ...a, profile: null })) || [];
 
@@ -102,7 +138,7 @@ export function useUpdateLocation() {
   });
 }
 
-// Allocate room to user
+// Allocate room to user with date range
 export function useAllocateRoom() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -111,8 +147,8 @@ export function useAllocateRoom() {
     mutationFn: async (allocation: {
       room_id: string;
       user_id: string;
-      check_in_date?: string;
-      check_out_date?: string;
+      check_in_date: string;
+      check_out_date: string;
       notes?: string;
     }) => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -126,7 +162,8 @@ export function useAllocateRoom() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['room-allocations'] });
       queryClient.invalidateQueries({ queryKey: ['accommodation-rooms'] });
-      toast({ title: 'Room Allocated', description: 'User has been assigned a room and notified.' });
+      queryClient.invalidateQueries({ queryKey: ['available-rooms-dates'] });
+      toast({ title: 'Room Allocated', description: 'User has been assigned a room for the selected dates.' });
     },
     onError: (e) => toast({ title: 'Allocation Failed', description: e.message, variant: 'destructive' }),
   });
@@ -138,31 +175,32 @@ export function useSwapRoom() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ oldAllocationId, newRoomId, userId, notes }: {
+    mutationFn: async ({ oldAllocationId, newRoomId, userId, checkInDate, checkOutDate, notes }: {
       oldAllocationId: string;
       newRoomId: string;
       userId: string;
+      checkInDate?: string;
+      checkOutDate?: string;
       notes?: string;
     }) => {
-      // Mark old allocation as swapped
       const { error: cancelError } = await supabase
         .from('room_allocations')
         .update({ status: 'swapped' })
         .eq('id', oldAllocationId);
       if (cancelError) throw cancelError;
 
-      // Create new allocation
       const { data: { user } } = await supabase.auth.getUser();
       const { error: allocError } = await supabase.from('room_allocations').insert({
         room_id: newRoomId,
         user_id: userId,
         allocated_by: user?.id,
         status: 'active',
+        check_in_date: checkInDate,
+        check_out_date: checkOutDate,
         notes: notes || 'Room swap',
       });
       if (allocError) throw allocError;
 
-      // Create notification for the swap
       const { data: roomData } = await supabase
         .from('rooms')
         .select('room_number, accommodation_locations(name)')
@@ -180,6 +218,7 @@ export function useSwapRoom() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['room-allocations'] });
       queryClient.invalidateQueries({ queryKey: ['accommodation-rooms'] });
+      queryClient.invalidateQueries({ queryKey: ['available-rooms-dates'] });
       toast({ title: 'Room Swapped', description: 'User room changed and notified.' });
     },
     onError: (e) => toast({ title: 'Swap Failed', description: e.message, variant: 'destructive' }),
@@ -202,6 +241,7 @@ export function useCancelAllocation() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['room-allocations'] });
       queryClient.invalidateQueries({ queryKey: ['accommodation-rooms'] });
+      queryClient.invalidateQueries({ queryKey: ['available-rooms-dates'] });
       toast({ title: 'Allocation Cancelled' });
     },
     onError: (e) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
@@ -216,11 +256,7 @@ export function useBulkImportRooms() {
   return useMutation({
     mutationFn: async (rooms: { room_number: string; location_id: string; capacity: number; ac_type: string; floor: number; room_type_id: string }[]) => {
       const { error } = await supabase.from('rooms').insert(
-        rooms.map(r => ({
-          ...r,
-          status: 'available',
-          is_active: true,
-        }))
+        rooms.map(r => ({ ...r, status: 'available', is_active: true }))
       );
       if (error) throw error;
       return rooms.length;
@@ -234,7 +270,7 @@ export function useBulkImportRooms() {
   });
 }
 
-// User's current room allocation
+// User's current active room allocation (date-aware)
 export function useMyAllocation() {
   return useQuery({
     queryKey: ['my-allocation'],
@@ -242,11 +278,52 @@ export function useMyAllocation() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return null;
 
+      // Get the most recent active allocation for this user
       const { data, error } = await supabase
         .from('room_allocations')
         .select('*, rooms(*, accommodation_locations(*))')
         .eq('user_id', user.id)
         .eq('status', 'active')
+        .order('check_in_date', { ascending: false });
+
+      if (error) throw error;
+      if (!data || data.length === 0) return null;
+
+      // Find allocation covering today, or the nearest upcoming one
+      const today = new Date().toISOString().split('T')[0];
+      const currentAlloc = data.find(a =>
+        (!a.check_in_date || a.check_in_date <= today) &&
+        (!a.check_out_date || a.check_out_date > today)
+      );
+
+      if (currentAlloc) return { ...currentAlloc, isActive: true };
+
+      // Return most recent/upcoming allocation with inactive flag
+      const upcoming = data.find(a => a.check_in_date && a.check_in_date > today);
+      if (upcoming) return { ...upcoming, isActive: false, isUpcoming: true };
+
+      // Past allocation
+      return { ...data[0], isActive: false, isPast: true };
+    },
+  });
+}
+
+// Fetch accommodation for a specific user (used by scanner)
+export function useUserAccommodation(userId?: string) {
+  return useQuery({
+    queryKey: ['user-accommodation', userId],
+    enabled: !!userId,
+    queryFn: async () => {
+      if (!userId) return null;
+
+      const today = new Date().toISOString().split('T')[0];
+      const { data, error } = await supabase
+        .from('room_allocations')
+        .select('*, rooms(room_number, accommodation_locations(name))')
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .lte('check_in_date', today)
+        .gt('check_out_date', today)
         .maybeSingle();
 
       if (error) throw error;
