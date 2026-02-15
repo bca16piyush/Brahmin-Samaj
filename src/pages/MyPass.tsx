@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { format } from 'date-fns';
 import QRCode from 'react-qr-code';
 import { Layout } from '@/components/layout/Layout';
 import { useAuth } from '@/contexts/AuthContext';
@@ -8,10 +9,10 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { User, ShieldCheck, Download, Bed, MapPin, Bell } from 'lucide-react';
+import { User, ShieldCheck, Download, Bed, MapPin, Bell, CalendarDays } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useMyAllocation } from '@/hooks/useAccommodation';
-import { useUserNotifications, useMarkNotificationRead } from '@/hooks/useUserNotifications';
+import { useUserNotifications } from '@/hooks/useUserNotifications';
 import { formatDistanceToNow } from 'date-fns';
 
 export default function MyPass() {
@@ -33,23 +34,11 @@ export default function MyPass() {
     try {
       const { default: html2canvas } = await import('html2canvas');
       const { default: jsPDF } = await import('jspdf');
-      
-      const canvas = await html2canvas(cardRef.current, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#ffffff',
-      });
-      
+      const canvas = await html2canvas(cardRef.current, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
       const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: [95, 160],
-      });
-      
-      pdf.addImage(imgData, 'PNG', 0, 0, 95, 160);
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [95, 170] });
+      pdf.addImage(imgData, 'PNG', 0, 0, 95, 170);
       pdf.save(`Mahayagya-Pass-${profile?.id?.slice(0, 8) || 'pass'}.pdf`);
-      
       toast({ title: 'Pass downloaded successfully!' });
     } catch (err) {
       console.error('PDF generation error:', err);
@@ -72,16 +61,17 @@ export default function MyPass() {
   const uid = profile.id?.slice(0, 8).toUpperCase() || 'N/A';
   const roomNumber = (allocation as any)?.rooms?.room_number;
   const locationName = (allocation as any)?.rooms?.accommodation_locations?.name;
+  const checkIn = allocation?.check_in_date;
+  const checkOut = allocation?.check_out_date;
+  const isActiveStay = (allocation as any)?.isActive === true;
+  const isUpcoming = (allocation as any)?.isUpcoming === true;
+  const hasAllocation = !!allocation;
 
   return (
     <Layout>
       <section className="py-12 lg:py-20">
         <div className="container mx-auto px-4 flex flex-col items-center">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-          >
+          <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
             <Card ref={cardRef} className="w-[340px] sm:w-[380px] overflow-hidden border-2 border-primary/30 shadow-temple">
               {/* Header */}
               <div className="bg-gradient-saffron px-6 py-4 text-center">
@@ -91,9 +81,7 @@ export default function MyPass() {
                 <h2 className="font-heading text-lg font-bold text-primary-foreground">
                   Official Mahayagya Entry Pass
                 </h2>
-                <p className="text-primary-foreground/80 text-xs mt-0.5">
-                  Digital Gate Pass
-                </p>
+                <p className="text-primary-foreground/80 text-xs mt-0.5">Digital Gate Pass</p>
               </div>
 
               {/* Body */}
@@ -130,12 +118,21 @@ export default function MyPass() {
                   <p className="font-heading text-2xl font-bold tracking-widest text-foreground">{uid}</p>
                 </div>
 
-                {/* Room Assignment - My Stay */}
-                {roomNumber && (
-                  <div className="w-full bg-primary/5 border border-primary/20 rounded-xl py-3 px-4">
+                {/* Accommodation Section */}
+                {hasAllocation && roomNumber ? (
+                  <div className={`w-full border rounded-xl py-3 px-4 ${isActiveStay ? 'bg-primary/5 border-primary/20' : 'bg-muted/50 border-border'}`}>
                     <div className="flex items-center gap-2 mb-1">
                       <Bed className="w-4 h-4 text-primary" />
                       <span className="text-xs font-medium text-primary">My Stay</span>
+                      {isActiveStay && (
+                        <Badge className="bg-green-500/10 text-green-600 border-green-500/20 text-[10px] ml-auto" variant="outline">Active</Badge>
+                      )}
+                      {isUpcoming && (
+                        <Badge className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20 text-[10px] ml-auto" variant="outline">Upcoming</Badge>
+                      )}
+                      {!isActiveStay && !isUpcoming && (
+                        <Badge className="bg-muted text-muted-foreground text-[10px] ml-auto" variant="outline">Expired</Badge>
+                      )}
                     </div>
                     <p className="font-heading text-lg font-bold text-foreground">Room {roomNumber}</p>
                     {locationName && (
@@ -144,6 +141,22 @@ export default function MyPass() {
                         <span className="text-xs text-muted-foreground">{locationName}</span>
                       </div>
                     )}
+                    {(checkIn || checkOut) && (
+                      <div className="flex items-center gap-1 mt-1">
+                        <CalendarDays className="w-3 h-3 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground">
+                          {checkIn ? format(new Date(checkIn), 'dd MMM') : '?'} — {checkOut ? format(new Date(checkOut), 'dd MMM yyyy') : '?'}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-center">
+                    <div className="flex items-center justify-center gap-2 mb-1">
+                      <Bed className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-xs font-medium text-muted-foreground">Accommodation</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">No Active Stay</p>
                   </div>
                 )}
 
@@ -193,7 +206,6 @@ export default function MyPass() {
                 </div>
               </div>
             )}
-
           </motion.div>
         </div>
       </section>
