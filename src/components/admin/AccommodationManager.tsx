@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
-import { Building2, Bed, Users, Plus, Upload, Search, ArrowRightLeft, X, MapPin, CalendarIcon } from 'lucide-react';
+import { Building2, Bed, Users, Plus, Upload, Search, ArrowRightLeft, X, MapPin, CalendarIcon, Trash2, AlertTriangle, RotateCcw } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,9 +14,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { DeleteConfirmDialog } from './DeleteConfirmDialog';
 import {
   useAccommodationLocations,
   useAccommodationRooms,
@@ -27,6 +29,10 @@ import {
   useCancelAllocation,
   useBulkImportRooms,
   useAvailableRoomsForDates,
+  useDeleteLocation,
+  useDeleteRooms,
+  useResetInventory,
+  useAdvancedBulkImport,
 } from '@/hooks/useAccommodation';
 import { useRoomTypes } from '@/hooks/useRoomBooking';
 
@@ -35,6 +41,36 @@ const STATUS_COLORS: Record<string, string> = {
   occupied: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
   maintenance: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20',
 };
+
+// Parse dd.mm.yy date format to YYYY-MM-DD
+function parseDateHeader(dateStr: string): string | null {
+  const match = dateStr.match(/(\d{2})\.(\d{2})\.(\d{2,4})/);
+  if (!match) return null;
+  const day = match[1];
+  const month = match[2];
+  let year = match[3];
+  if (year.length === 2) year = '20' + year;
+  return `${year}-${month}-${day}`;
+}
+
+// Generate a prefix from hotel name (e.g., "Hotel New Park" -> "NP")
+function generatePrefix(name: string): string {
+  const words = name.replace(/^(hotel|the|shri|shree)\s+/i, '').split(/\s+/);
+  if (words.length >= 2) {
+    return (words[0][0] + words[1][0]).toUpperCase();
+  }
+  return words[0]?.slice(0, 2).toUpperCase() || 'RM';
+}
+
+// Parse date range from column header like "Rooms (05.03.26 to 20.04.26)"
+function parseDateRange(header: string): { from: string; to: string } | null {
+  const matches = header.match(/(\d{2}\.\d{2}\.\d{2,4})\s*to\s*(\d{2}\.\d{2}\.\d{2,4})/i);
+  if (!matches) return null;
+  const from = parseDateHeader(matches[1]);
+  const to = parseDateHeader(matches[2]);
+  if (!from || !to) return null;
+  return { from, to };
+}
 
 export function AccommodationManager() {
   const { data: locations, isLoading: loadingLocs } = useAccommodationLocations();
@@ -47,6 +83,10 @@ export function AccommodationManager() {
   const swapRoom = useSwapRoom();
   const cancelAllocation = useCancelAllocation();
   const bulkImport = useBulkImportRooms();
+  const deleteLocation = useDeleteLocation();
+  const deleteRooms = useDeleteRooms();
+  const resetInventory = useResetInventory();
+  const advancedBulkImport = useAdvancedBulkImport();
   const { toast } = useToast();
 
   // State
@@ -54,7 +94,7 @@ export function AccommodationManager() {
   const [showAddLocation, setShowAddLocation] = useState(false);
   const [showAllocate, setShowAllocate] = useState(false);
   const [showSwap, setShowSwap] = useState(false);
-  const [showBulkImport, setShowBulkImport] = useState(false);
+  const [showAdvancedImport, setShowAdvancedImport] = useState(false);
   const [newLocName, setNewLocName] = useState('');
   const [newLocDesc, setNewLocDesc] = useState('');
   const [newLocAddr, setNewLocAddr] = useState('');
@@ -72,6 +112,20 @@ export function AccommodationManager() {
   const [userSearchResults, setUserSearchResults] = useState<any[]>([]);
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Delete state
+  const [selectedRoomIds, setSelectedRoomIds] = useState<Set<string>>(new Set());
+  const [deleteLocId, setDeleteLocId] = useState<string | null>(null);
+  const [showDeleteRoomsConfirm, setShowDeleteRoomsConfirm] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [resetConfirmText, setResetConfirmText] = useState('');
+
+  // Import preview state
+  const [importPreview, setImportPreview] = useState<{
+    newLocations: { name: string; address?: string; category?: string; feeding_system?: string }[];
+    rooms: { room_number: string; location_id: string; capacity: number; ac_type: string; floor: number; room_type_id: string; available_from?: string; available_to?: string }[];
+    summary: string[];
+  } | null>(null);
 
   // Date-based available rooms for allocation
   const checkInStr = allocCheckIn ? format(allocCheckIn, 'yyyy-MM-dd') : undefined;
@@ -110,6 +164,23 @@ export function AccommodationManager() {
   const paginatedRooms = filteredRooms.slice(page * pageSize, (page + 1) * pageSize);
   const totalPages = Math.ceil(filteredRooms.length / pageSize);
 
+  // Toggle room selection
+  const toggleRoomSelection = (roomId: string) => {
+    setSelectedRoomIds(prev => {
+      const next = new Set(prev);
+      if (next.has(roomId)) next.delete(roomId); else next.add(roomId);
+      return next;
+    });
+  };
+
+  const toggleAllRooms = () => {
+    if (selectedRoomIds.size === paginatedRooms.length) {
+      setSelectedRoomIds(new Set());
+    } else {
+      setSelectedRoomIds(new Set(paginatedRooms.map(r => r.id)));
+    }
+  };
+
   // Search users
   const searchUsers = useCallback(async (query: string) => {
     setUserSearchQuery(query);
@@ -122,15 +193,10 @@ export function AccommodationManager() {
     setUserSearchResults(data || []);
   }, []);
 
-  // Handle bulk import CSV
-  const handleBulkImport = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Advanced Import: parse Excel/CSV with date-range columns
+  const handleAdvancedImport = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    if (!selectedLocation || selectedLocation === 'all') {
-      toast({ title: 'Select a location first', variant: 'destructive' });
-      return;
-    }
 
     const defaultRoomTypeId = roomTypes?.[0]?.id;
     if (!defaultRoomTypeId) {
@@ -139,57 +205,127 @@ export function AccommodationManager() {
     }
 
     try {
-      const text = await file.text();
-      const lines = text.split('\n').filter(l => l.trim());
-      const headers = lines[0].toLowerCase().split(',').map(h => h.trim());
-
-      // Support "Property Name" column - if present, match to location or use selected
-      const propertyIdx = headers.findIndex(h => h.includes('property') || h.includes('location'));
-      const roomNumberIdx = headers.findIndex(h => (h.includes('room') && h.includes('no')) || h.includes('room_number') || h === 'room');
-      const capacityIdx = headers.findIndex(h => h.includes('capacity') || h.includes('beds') || h.includes('pax'));
-      const acIdx = headers.findIndex(h => h.includes('ac') || h.includes('type'));
-      const floorIdx = headers.findIndex(h => h.includes('floor'));
-
-      if (roomNumberIdx === -1) {
-        toast({ title: 'CSV must have a "Room No" or "room_number" column', variant: 'destructive' });
+      const ExcelJS = await import('exceljs');
+      const workbook = new ExcelJS.default.Workbook();
+      const arrayBuffer = await file.arrayBuffer();
+      await workbook.xlsx.load(arrayBuffer);
+      
+      const worksheet = workbook.worksheets[0];
+      if (!worksheet) {
+        toast({ title: 'No worksheet found', variant: 'destructive' });
         return;
       }
 
-      // Build location lookup map
-      const locationMap = new Map((locations || []).map(l => [l.name.toLowerCase().trim(), l.id]));
+      // Read headers from row 1
+      const headerRow = worksheet.getRow(1);
+      const headers: string[] = [];
+      headerRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+        headers[colNumber] = String(cell.value || '').trim();
+      });
 
-      const roomsToImport = lines.slice(1).map(line => {
-        const cols = line.split(',').map(c => c.trim());
-        // Try to match property name to a location
-        let locId = selectedLocation;
-        if (propertyIdx !== -1 && cols[propertyIdx]) {
-          const matched = locationMap.get(cols[propertyIdx].toLowerCase().trim());
-          if (matched) locId = matched;
+      // Identify columns
+      const categoryIdx = headers.findIndex(h => /category/i.test(h));
+      const hotelIdx = headers.findIndex(h => /hotel\s*name/i.test(h));
+      const addressIdx = headers.findIndex(h => /address/i.test(h));
+      const feedingIdx = headers.findIndex(h => /feeding/i.test(h));
+
+      // Find date range columns: "Rooms (dd.mm.yy to dd.mm.yy)"
+      const dateRangeColumns: { colIdx: number; from: string; to: string }[] = [];
+      headers.forEach((h, idx) => {
+        if (!h) return;
+        const range = parseDateRange(h);
+        if (range) dateRangeColumns.push({ colIdx: idx, ...range });
+      });
+
+      if (hotelIdx === -1) {
+        toast({ title: 'Missing "Hotel Name" column in the file', variant: 'destructive' });
+        return;
+      }
+
+      if (dateRangeColumns.length === 0) {
+        toast({ title: 'No date range columns found (e.g., "Rooms (05.03.26 to 20.04.26)")', variant: 'destructive' });
+        return;
+      }
+
+      // Build location lookup
+      const existingLocMap = new Map((locations || []).map(l => [l.name.toLowerCase().trim(), l.id]));
+      const newLocationsMap = new Map<string, { name: string; address?: string; category?: string; feeding_system?: string }>();
+      const allRooms: typeof importPreview extends null ? never : NonNullable<typeof importPreview>['rooms'] = [];
+      const summary: string[] = [];
+
+      // Process data rows
+      worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+        if (rowNumber === 1) return; // skip header
+
+        const hotelName = String(row.getCell(hotelIdx + 1).value || '').trim();
+        if (!hotelName) return;
+
+        const address = addressIdx >= 0 ? String(row.getCell(addressIdx + 1).value || '').trim() : '';
+        const category = categoryIdx >= 0 ? String(row.getCell(categoryIdx + 1).value || '').trim() : '';
+        const feeding = feedingIdx >= 0 ? String(row.getCell(feedingIdx + 1).value || '').trim() : '';
+
+        // Get or create location
+        let locationId = existingLocMap.get(hotelName.toLowerCase().trim());
+        if (!locationId) {
+          if (!newLocationsMap.has(hotelName.toLowerCase().trim())) {
+            newLocationsMap.set(hotelName.toLowerCase().trim(), { name: hotelName, address, category, feeding_system: feeding });
+          }
+          locationId = 'NEW:' + hotelName;
         }
 
-        return {
-          room_number: cols[roomNumberIdx] || '',
-          location_id: locId,
-          capacity: parseInt(cols[capacityIdx] || '2') || 2,
-          ac_type: cols[acIdx]?.toLowerCase().includes('ac') && !cols[acIdx]?.toLowerCase().includes('non') ? 'ac' : 'non_ac',
-          floor: parseInt(cols[floorIdx] || '1') || 1,
-          room_type_id: defaultRoomTypeId,
-        };
-      }).filter(r => r.room_number);
+        const prefix = generatePrefix(hotelName);
 
-      if (roomsToImport.length === 0) {
-        toast({ title: 'No valid rooms found in file', variant: 'destructive' });
+        // Process each date range column
+        for (const drc of dateRangeColumns) {
+          const cellValue = row.getCell(drc.colIdx + 1).value;
+          const numRooms = parseInt(String(cellValue || '0'));
+          if (!numRooms || numRooms <= 0) continue;
+
+          for (let i = 1; i <= numRooms; i++) {
+            allRooms.push({
+              room_number: `${prefix}-${String(i).padStart(3, '0')}`,
+              location_id: locationId!,
+              capacity: 2,
+              ac_type: 'non_ac',
+              floor: 1,
+              room_type_id: defaultRoomTypeId,
+              available_from: drc.from,
+              available_to: drc.to,
+            });
+          }
+
+          summary.push(`${hotelName}: ${numRooms} rooms (${drc.from} to ${drc.to})`);
+        }
+      });
+
+      if (allRooms.length === 0) {
+        toast({ title: 'No rooms found in the file. Check format.', variant: 'destructive' });
         return;
       }
 
-      bulkImport.mutate(roomsToImport);
-      setShowBulkImport(false);
+      setImportPreview({
+        newLocations: Array.from(newLocationsMap.values()),
+        rooms: allRooms,
+        summary,
+      });
+
     } catch (err) {
-      toast({ title: 'Import Error', description: 'Failed to parse file', variant: 'destructive' });
+      console.error('Import parse error:', err);
+      toast({ title: 'Import Error', description: 'Failed to parse file. Ensure it is a valid Excel/CSV.', variant: 'destructive' });
     }
 
     if (fileInputRef.current) fileInputRef.current.value = '';
-  }, [selectedLocation, roomTypes, locations, bulkImport, toast]);
+  }, [roomTypes, locations, toast]);
+
+  const confirmAdvancedImport = () => {
+    if (!importPreview) return;
+    advancedBulkImport.mutate({
+      rooms: importPreview.rooms,
+      newLocations: importPreview.newLocations,
+    });
+    setImportPreview(null);
+    setShowAdvancedImport(false);
+  };
 
   const handleAllocate = () => {
     if (!allocUserId || !allocRoomId || !allocCheckIn || !allocCheckOut) return;
@@ -292,10 +428,10 @@ export function AccommodationManager() {
             <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
               <div>
                 <CardTitle>Room Inventory</CardTitle>
-                <CardDescription>{filteredRooms.length} rooms</CardDescription>
+                <CardDescription>{filteredRooms.length} rooms {selectedRoomIds.size > 0 && `(${selectedRoomIds.size} selected)`}</CardDescription>
               </div>
               <div className="flex gap-2 flex-wrap">
-                <Select value={selectedLocation} onValueChange={setSelectedLocation}>
+                <Select value={selectedLocation} onValueChange={v => { setSelectedLocation(v); setPage(0); setSelectedRoomIds(new Set()); }}>
                   <SelectTrigger className="w-[180px]">
                     <SelectValue placeholder="All Properties" />
                   </SelectTrigger>
@@ -320,7 +456,6 @@ export function AccommodationManager() {
                       <DialogDescription>Select dates first — only rooms available for those dates will be shown</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 pt-2">
-                      {/* User Search */}
                       <div className="space-y-2">
                         <Label>Search User</Label>
                         <Input placeholder="Name or mobile..." value={userSearchQuery} onChange={e => searchUsers(e.target.value)} />
@@ -335,8 +470,6 @@ export function AccommodationManager() {
                           </div>
                         )}
                       </div>
-
-                      {/* Date Range */}
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-2">
                           <Label>Check-in Date</Label>
@@ -369,8 +502,6 @@ export function AccommodationManager() {
                           </Popover>
                         </div>
                       </div>
-
-                      {/* Property filter */}
                       <div className="space-y-2">
                         <Label>Filter by Property</Label>
                         <Select value={allocLocationFilter} onValueChange={setAllocLocationFilter}>
@@ -381,8 +512,6 @@ export function AccommodationManager() {
                           </SelectContent>
                         </Select>
                       </div>
-
-                      {/* Available Room */}
                       <div className="space-y-2">
                         <Label>Available Room {allocCheckIn && allocCheckOut ? `(${availableRoomsForDates?.length || 0} available)` : ''}</Label>
                         <Select value={allocRoomId} onValueChange={setAllocRoomId} disabled={!allocCheckIn || !allocCheckOut}>
@@ -396,7 +525,6 @@ export function AccommodationManager() {
                           </SelectContent>
                         </Select>
                       </div>
-
                       <div className="space-y-2">
                         <Label>Notes (optional)</Label>
                         <Textarea value={allocNotes} onChange={e => setAllocNotes(e.target.value)} />
@@ -408,40 +536,79 @@ export function AccommodationManager() {
                   </DialogContent>
                 </Dialog>
 
-                {/* Bulk Import Dialog */}
-                <Dialog open={showBulkImport} onOpenChange={setShowBulkImport}>
+                {/* Import Inventory Dialog */}
+                <Dialog open={showAdvancedImport} onOpenChange={(o) => { setShowAdvancedImport(o); if (!o) setImportPreview(null); }}>
                   <DialogTrigger asChild>
-                    <Button size="sm" variant="outline" className="gap-2"><Upload className="h-4 w-4" />Bulk Import</Button>
+                    <Button size="sm" variant="outline" className="gap-2"><Upload className="h-4 w-4" />Import Inventory</Button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
                     <DialogHeader>
-                      <DialogTitle>Bulk Import Rooms</DialogTitle>
-                      <DialogDescription>Upload a CSV with columns: Property Name, Room No, Type, Capacity</DialogDescription>
+                      <DialogTitle>Import Inventory from Excel</DialogTitle>
+                      <DialogDescription>
+                        Upload Excel with columns: Category, Hotel Name, Address, Feeding System Name, and date-range columns like "Rooms (05.03.26 to 20.04.26)"
+                      </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 pt-2">
-                      {selectedLocation === 'all' && (
-                        <div className="space-y-2">
-                          <Label>Default Property (if not in CSV)</Label>
-                          <Select value={selectedLocation} onValueChange={setSelectedLocation}>
-                            <SelectTrigger><SelectValue placeholder="Choose property" /></SelectTrigger>
-                            <SelectContent>
-                              {locations?.map(l => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                        </div>
+                      {!importPreview ? (
+                        <>
+                          <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
+                            <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                            <p className="text-sm text-muted-foreground mb-3">Upload Excel (.xlsx) file</p>
+                            <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv" onChange={handleAdvancedImport} className="hidden" />
+                            <Button variant="outline" onClick={() => fileInputRef.current?.click()}>Choose File</Button>
+                          </div>
+                          <div className="bg-muted rounded-lg p-3 text-xs text-muted-foreground space-y-1">
+                            <p className="font-medium text-foreground">Expected format:</p>
+                            <p>• <b>Hotel Name</b> → Creates/links to a property</p>
+                            <p>• <b>Category</b> → Tags the property category</p>
+                            <p>• <b>Rooms (dd.mm.yy to dd.mm.yy)</b> → Number of rooms for that date range</p>
+                            <p>• Room numbers auto-generated (e.g., NP-001 to NP-038)</p>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="bg-primary/5 border border-primary/20 rounded-lg p-4">
+                            <h4 className="font-medium text-sm mb-2">Import Preview</h4>
+                            <p className="text-sm text-muted-foreground mb-2">
+                              <b>{importPreview.rooms.length}</b> rooms from <b>{importPreview.newLocations.length + (locations?.length || 0)}</b> properties
+                            </p>
+                            {importPreview.newLocations.length > 0 && (
+                              <div className="mb-2">
+                                <p className="text-xs font-medium text-foreground">New Properties:</p>
+                                {importPreview.newLocations.map((l, i) => (
+                                  <Badge key={i} variant="outline" className="mr-1 mt-1 text-xs">{l.name}</Badge>
+                                ))}
+                              </div>
+                            )}
+                            <div className="max-h-40 overflow-y-auto space-y-1">
+                              {importPreview.summary.map((s, i) => (
+                                <p key={i} className="text-xs text-muted-foreground">• {s}</p>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button variant="outline" className="flex-1" onClick={() => setImportPreview(null)}>Cancel</Button>
+                            <Button className="flex-1" onClick={confirmAdvancedImport} disabled={advancedBulkImport.isPending}>
+                              {advancedBulkImport.isPending ? 'Importing...' : `Import ${importPreview.rooms.length} Rooms`}
+                            </Button>
+                          </div>
+                        </>
                       )}
-                      <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
-                        <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                        <p className="text-sm text-muted-foreground mb-3">Upload CSV file</p>
-                        <input ref={fileInputRef} type="file" accept=".csv" onChange={handleBulkImport} className="hidden" />
-                        <Button variant="outline" onClick={() => fileInputRef.current?.click()}>Choose File</Button>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        CSV format: Property Name (optional), Room No, Capacity, AC Type (AC/Non-AC), Floor
-                      </p>
                     </div>
                   </DialogContent>
                 </Dialog>
+
+                {/* Bulk Delete Selected */}
+                {selectedRoomIds.size > 0 && (
+                  <Button size="sm" variant="destructive" className="gap-2" onClick={() => setShowDeleteRoomsConfirm(true)}>
+                    <Trash2 className="h-4 w-4" />Delete ({selectedRoomIds.size})
+                  </Button>
+                )}
+
+                {/* Reset Inventory */}
+                <Button size="sm" variant="ghost" className="gap-2 text-destructive hover:text-destructive" onClick={() => setShowResetConfirm(true)}>
+                  <RotateCcw className="h-4 w-4" />Reset
+                </Button>
               </div>
             </CardHeader>
             <CardContent>
@@ -449,16 +616,30 @@ export function AccommodationManager() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-10">
+                        <Checkbox
+                          checked={paginatedRooms.length > 0 && selectedRoomIds.size === paginatedRooms.length}
+                          onCheckedChange={toggleAllRooms}
+                        />
+                      </TableHead>
                       <TableHead>Room #</TableHead>
                       <TableHead>Property</TableHead>
                       <TableHead>Capacity</TableHead>
                       <TableHead>Type</TableHead>
+                      <TableHead>Available</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead className="w-10"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {paginatedRooms.map(room => (
-                      <TableRow key={room.id}>
+                      <TableRow key={room.id} className={selectedRoomIds.has(room.id) ? 'bg-primary/5' : ''}>
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedRoomIds.has(room.id)}
+                            onCheckedChange={() => toggleRoomSelection(room.id)}
+                          />
+                        </TableCell>
                         <TableCell className="font-medium">{room.room_number}</TableCell>
                         <TableCell className="text-sm">{(room as any).accommodation_locations?.name || '-'}</TableCell>
                         <TableCell>{(room as any).capacity || 2} pax</TableCell>
@@ -467,13 +648,29 @@ export function AccommodationManager() {
                             {(room as any).ac_type === 'ac' ? 'AC' : 'Non-AC'}
                           </Badge>
                         </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {(room as any).available_from && (room as any).available_to
+                            ? `${(room as any).available_from} → ${(room as any).available_to}`
+                            : '-'}
+                        </TableCell>
                         <TableCell>
                           <Badge variant="outline" className={STATUS_COLORS[(room as any).status || 'available'] || ''}>
                             {((room as any).status || 'available').charAt(0).toUpperCase() + ((room as any).status || 'available').slice(1)}
                           </Badge>
                         </TableCell>
+                        <TableCell>
+                          <Button variant="ghost" size="sm" className="text-destructive h-7 w-7 p-0"
+                            onClick={() => { setSelectedRoomIds(new Set([room.id])); setShowDeleteRoomsConfirm(true); }}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))}
+                    {paginatedRooms.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No rooms found</TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </div>
@@ -693,15 +890,23 @@ export function AccommodationManager() {
               <div className="space-y-3">
                 {locations?.map(loc => (
                   <div key={loc.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
-                    <div>
+                    <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <MapPin className="w-4 h-4 text-primary" />
                         <span className="font-medium">{loc.name}</span>
                         {!loc.is_active && <Badge variant="secondary" className="text-xs">Inactive</Badge>}
+                        {(loc as any).category && <Badge variant="outline" className="text-xs">{(loc as any).category}</Badge>}
                       </div>
                       {loc.address && <p className="text-xs text-muted-foreground mt-1">{loc.address}</p>}
                       {loc.description && <p className="text-sm text-muted-foreground mt-1">{loc.description}</p>}
+                      {(loc as any).feeding_system && (
+                        <p className="text-xs text-muted-foreground mt-1">Feeding: {(loc as any).feeding_system}</p>
+                      )}
                     </div>
+                    <Button variant="ghost" size="sm" className="text-destructive h-8 w-8 p-0"
+                      onClick={() => setDeleteLocId(loc.id)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 ))}
                 {(!locations || locations.length === 0) && (
@@ -712,6 +917,72 @@ export function AccommodationManager() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Delete Location Confirm */}
+      <DeleteConfirmDialog
+        open={!!deleteLocId}
+        onOpenChange={(o) => { if (!o) setDeleteLocId(null); }}
+        onConfirm={() => {
+          if (deleteLocId) {
+            deleteLocation.mutate(deleteLocId);
+            setDeleteLocId(null);
+          }
+        }}
+        title="Delete Property"
+        description="This will permanently delete this property and all its rooms. If users are currently assigned, the deletion will be blocked."
+        isLoading={deleteLocation.isPending}
+      />
+
+      {/* Delete Rooms Confirm */}
+      <DeleteConfirmDialog
+        open={showDeleteRoomsConfirm}
+        onOpenChange={setShowDeleteRoomsConfirm}
+        onConfirm={() => {
+          deleteRooms.mutate(Array.from(selectedRoomIds));
+          setSelectedRoomIds(new Set());
+          setShowDeleteRoomsConfirm(false);
+        }}
+        title={`Delete ${selectedRoomIds.size} Room(s)`}
+        description="Rooms with active allocations will be skipped. This action cannot be undone."
+        isLoading={deleteRooms.isPending}
+      />
+
+      {/* Reset Inventory Confirm */}
+      <Dialog open={showResetConfirm} onOpenChange={(o) => { setShowResetConfirm(o); if (!o) setResetConfirmText(''); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+              Reset Entire Inventory
+            </DialogTitle>
+            <DialogDescription>
+              This will permanently delete ALL rooms, allocations, and properties. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-sm text-destructive">
+              Type <b>RESET</b> below to confirm.
+            </div>
+            <Input
+              value={resetConfirmText}
+              onChange={e => setResetConfirmText(e.target.value)}
+              placeholder='Type "RESET" to confirm'
+            />
+            <Button
+              variant="destructive"
+              className="w-full"
+              disabled={resetConfirmText !== 'RESET' || resetInventory.isPending}
+              onClick={() => {
+                resetInventory.mutate();
+                setShowResetConfirm(false);
+                setResetConfirmText('');
+              }}
+            >
+              {resetInventory.isPending ? 'Resetting...' : 'Reset All Inventory'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 }
