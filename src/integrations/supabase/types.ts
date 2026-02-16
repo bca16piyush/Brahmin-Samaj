@@ -17,8 +17,10 @@ export type Database = {
       accommodation_locations: {
         Row: {
           address: string | null
+          category: string | null
           created_at: string | null
           description: string | null
+          feeding_system: string | null
           id: string
           is_active: boolean | null
           name: string
@@ -26,8 +28,10 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          category?: string | null
           created_at?: string | null
           description?: string | null
+          feeding_system?: string | null
           id?: string
           is_active?: boolean | null
           name: string
@@ -35,8 +39,10 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          category?: string | null
           created_at?: string | null
           description?: string | null
+          feeding_system?: string | null
           id?: string
           is_active?: boolean | null
           name?: string
@@ -964,6 +970,8 @@ export type Database = {
       rooms: {
         Row: {
           ac_type: string | null
+          available_from: string | null
+          available_to: string | null
           blocked_reason: string | null
           blocked_until: string | null
           capacity: number | null
@@ -981,6 +989,8 @@ export type Database = {
         }
         Insert: {
           ac_type?: string | null
+          available_from?: string | null
+          available_to?: string | null
           blocked_reason?: string | null
           blocked_until?: string | null
           capacity?: number | null
@@ -998,6 +1008,8 @@ export type Database = {
         }
         Update: {
           ac_type?: string | null
+          available_from?: string | null
+          available_to?: string | null
           blocked_reason?: string | null
           blocked_until?: string | null
           capacity?: number | null

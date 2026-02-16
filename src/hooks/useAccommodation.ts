@@ -270,6 +270,176 @@ export function useBulkImportRooms() {
   });
 }
 
+// Delete a location (only if no active allocations)
+export function useDeleteLocation() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (locationId: string) => {
+      // Check for active allocations on rooms in this location
+      const { data: rooms } = await supabase
+        .from('rooms')
+        .select('id')
+        .eq('location_id', locationId);
+      
+      if (rooms && rooms.length > 0) {
+        const roomIds = rooms.map(r => r.id);
+        const { data: activeAllocs } = await supabase
+          .from('room_allocations')
+          .select('id')
+          .in('room_id', roomIds)
+          .eq('status', 'active')
+          .limit(1);
+        
+        if (activeAllocs && activeAllocs.length > 0) {
+          throw new Error('Cannot delete: Users are currently assigned to this property.');
+        }
+        
+        // Delete rooms first
+        const { error: roomErr } = await supabase.from('rooms').delete().in('id', roomIds);
+        if (roomErr) throw roomErr;
+      }
+      
+      const { error } = await supabase.from('accommodation_locations').delete().eq('id', locationId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accommodation-locations'] });
+      queryClient.invalidateQueries({ queryKey: ['accommodation-rooms'] });
+      toast({ title: 'Property Deleted' });
+    },
+    onError: (e) => toast({ title: 'Delete Failed', description: e.message, variant: 'destructive' }),
+  });
+}
+
+// Delete rooms (bulk)
+export function useDeleteRooms() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (roomIds: string[]) => {
+      // Check active allocations
+      const { data: activeAllocs } = await supabase
+        .from('room_allocations')
+        .select('room_id')
+        .in('room_id', roomIds)
+        .eq('status', 'active');
+      
+      if (activeAllocs && activeAllocs.length > 0) {
+        const activeSet = new Set(activeAllocs.map(a => a.room_id));
+        const safeIds = roomIds.filter(id => !activeSet.has(id));
+        if (safeIds.length === 0) {
+          throw new Error('All selected rooms have active allocations.');
+        }
+        // Delete only safe rooms
+        const { error } = await supabase.from('rooms').delete().in('id', safeIds);
+        if (error) throw error;
+        return { deleted: safeIds.length, skipped: roomIds.length - safeIds.length };
+      }
+      
+      const { error } = await supabase.from('rooms').delete().in('id', roomIds);
+      if (error) throw error;
+      return { deleted: roomIds.length, skipped: 0 };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['accommodation-rooms'] });
+      queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      const msg = result.skipped > 0
+        ? `Deleted ${result.deleted} rooms. ${result.skipped} skipped (active allocations).`
+        : `${result.deleted} rooms deleted.`;
+      toast({ title: 'Rooms Deleted', description: msg });
+    },
+    onError: (e) => toast({ title: 'Delete Failed', description: e.message, variant: 'destructive' }),
+  });
+}
+
+// Reset all inventory (wipe all rooms and allocations)
+export function useResetInventory() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async () => {
+      // Delete all allocations first, then rooms, then locations
+      const { error: allocErr } = await supabase.from('room_allocations').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      if (allocErr) throw allocErr;
+      const { error: roomErr } = await supabase.from('rooms').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      if (roomErr) throw roomErr;
+      const { error: locErr } = await supabase.from('accommodation_locations').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      if (locErr) throw locErr;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accommodation-locations'] });
+      queryClient.invalidateQueries({ queryKey: ['accommodation-rooms'] });
+      queryClient.invalidateQueries({ queryKey: ['room-allocations'] });
+      queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      toast({ title: 'Inventory Reset', description: 'All rooms, allocations, and properties have been cleared.' });
+    },
+    onError: (e) => toast({ title: 'Reset Failed', description: e.message, variant: 'destructive' }),
+  });
+}
+
+// Advanced bulk import with date-range room generation
+export function useAdvancedBulkImport() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (params: {
+      rooms: { room_number: string; location_id: string; capacity: number; ac_type: string; floor: number; room_type_id: string; available_from?: string; available_to?: string }[];
+      newLocations: { name: string; address?: string; category?: string; feeding_system?: string }[];
+    }) => {
+      // Create new locations first and get their IDs
+      const locationMap = new Map<string, string>();
+      
+      for (const loc of params.newLocations) {
+        const { data, error } = await supabase
+          .from('accommodation_locations')
+          .insert({ name: loc.name, address: loc.address, category: loc.category, feeding_system: loc.feeding_system })
+          .select('id')
+          .single();
+        if (error) throw error;
+        locationMap.set(loc.name.toLowerCase().trim(), data.id);
+      }
+
+      // Replace placeholder location IDs with real ones
+      const finalRooms = params.rooms.map(r => {
+        if (r.location_id.startsWith('NEW:')) {
+          const locName = r.location_id.replace('NEW:', '').toLowerCase().trim();
+          const realId = locationMap.get(locName);
+          if (realId) return { ...r, location_id: realId };
+        }
+        return r;
+      });
+
+      // Batch insert rooms (max 500 at a time)
+      const batchSize = 500;
+      let totalInserted = 0;
+      for (let i = 0; i < finalRooms.length; i += batchSize) {
+        const batch = finalRooms.slice(i, i + batchSize).map(r => ({
+          ...r,
+          status: 'available' as const,
+          is_active: true,
+        }));
+        const { error } = await supabase.from('rooms').insert(batch);
+        if (error) throw error;
+        totalInserted += batch.length;
+      }
+      
+      return totalInserted;
+    },
+    onSuccess: (count) => {
+      queryClient.invalidateQueries({ queryKey: ['accommodation-rooms'] });
+      queryClient.invalidateQueries({ queryKey: ['accommodation-locations'] });
+      queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      toast({ title: 'Import Complete', description: `${count} rooms imported successfully.` });
+    },
+    onError: (e) => toast({ title: 'Import Failed', description: e.message, variant: 'destructive' }),
+  });
+}
+
 // User's current active room allocation (date-aware)
 export function useMyAllocation() {
   return useQuery({
@@ -278,7 +448,6 @@ export function useMyAllocation() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return null;
 
-      // Get the most recent active allocation for this user
       const { data, error } = await supabase
         .from('room_allocations')
         .select('*, rooms(*, accommodation_locations(*))')
@@ -289,7 +458,6 @@ export function useMyAllocation() {
       if (error) throw error;
       if (!data || data.length === 0) return null;
 
-      // Find allocation covering today, or the nearest upcoming one
       const today = new Date().toISOString().split('T')[0];
       const currentAlloc = data.find(a =>
         (!a.check_in_date || a.check_in_date <= today) &&
@@ -298,11 +466,9 @@ export function useMyAllocation() {
 
       if (currentAlloc) return { ...currentAlloc, isActive: true };
 
-      // Return most recent/upcoming allocation with inactive flag
       const upcoming = data.find(a => a.check_in_date && a.check_in_date > today);
       if (upcoming) return { ...upcoming, isActive: false, isUpcoming: true };
 
-      // Past allocation
       return { ...data[0], isActive: false, isPast: true };
     },
   });
