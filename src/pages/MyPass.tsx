@@ -21,6 +21,7 @@ function PhotoUploadGate({ onUploaded }: { onUploaded: () => void }) {
   const { toast } = useToast();
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -80,15 +81,27 @@ function PhotoUploadGate({ onUploaded }: { onUploaded: () => void }) {
               A profile photo is mandatory for your Digital Gate Pass. This helps volunteers verify your identity at entry gates.
             </p>
           </div>
-          <input ref={fileRef} type="file" accept="image/*" capture="user" onChange={handleUpload} className="hidden" />
-          <Button
-            onClick={() => fileRef.current?.click()}
-            disabled={uploading}
-            className="bg-gradient-saffron text-primary-foreground gap-2 w-full max-w-xs"
-          >
-            <Upload className="w-4 h-4" />
-            {uploading ? 'Uploading...' : 'Choose Photo'}
-          </Button>
+          <input ref={fileRef} type="file" accept="image/*" onChange={handleUpload} className="hidden" />
+          <input ref={cameraRef} type="file" accept="image/*" capture="user" onChange={handleUpload} className="hidden" />
+          <div className="flex gap-3 w-full max-w-xs">
+            <Button
+              onClick={() => cameraRef.current?.click()}
+              disabled={uploading}
+              className="bg-gradient-saffron text-primary-foreground gap-2 flex-1"
+            >
+              <Camera className="w-4 h-4" />
+              {uploading ? 'Uploading...' : 'Take Selfie'}
+            </Button>
+            <Button
+              onClick={() => fileRef.current?.click()}
+              disabled={uploading}
+              variant="outline"
+              className="gap-2 flex-1"
+            >
+              <Upload className="w-4 h-4" />
+              Gallery
+            </Button>
+          </div>
           <p className="text-xs text-muted-foreground">Max 5MB • JPG, PNG supported</p>
         </div>
       </Card>
