@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle2, XCircle, AlertTriangle, ScanLine, Camera, Bed, MapPin, CalendarDays } from 'lucide-react';
+import { CheckCircle2, XCircle, AlertTriangle, ScanLine, Camera, Bed, MapPin, CalendarDays, User } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { useToast } from '@/hooks/use-toast';
 
@@ -23,6 +23,7 @@ type AccommodationInfo = {
 type ScanResult = {
   status: 'success' | 'duplicate' | 'invalid';
   userName?: string;
+  userPhoto?: string | null;
   uid?: string;
   message: string;
   accommodation?: AccommodationInfo;
@@ -40,7 +41,6 @@ export default function Verify() {
   const [isVolunteer, setIsVolunteer] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
 
-  // Check if user is admin or volunteer
   useEffect(() => {
     const checkAccess = async () => {
       if (!user) return;
@@ -96,7 +96,6 @@ export default function Verify() {
     },
   });
 
-  // Fetch accommodation info for scanned user
   const fetchAccommodation = async (userId: string): Promise<AccommodationInfo> => {
     const today = new Date().toISOString().split('T')[0];
     const { data } = await supabase
@@ -126,7 +125,6 @@ export default function Verify() {
         await scannerRef.current.pause(true);
       }
 
-      // Look up user
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('id, name, avatar_url')
@@ -141,7 +139,6 @@ export default function Verify() {
         return;
       }
 
-      // Check duplicate scan (5-min cooldown)
       const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
       const { data: recentScan } = await supabase
         .from('event_logs').select('id')
@@ -152,14 +149,12 @@ export default function Verify() {
 
       if (recentScan) {
         playErrorSound();
-        // Still fetch accommodation for duplicates
         const accom = await fetchAccommodation(foundProfile.id);
-        setScanResult({ status: 'duplicate', userName: foundProfile.name, uid: scannedUid, message: 'Already Scanned Recently (within 5 minutes)', accommodation: accom });
+        setScanResult({ status: 'duplicate', userName: foundProfile.name, userPhoto: foundProfile.avatar_url, uid: scannedUid, message: 'Already Scanned Recently (within 5 minutes)', accommodation: accom });
         setIsProcessing(false);
         return;
       }
 
-      // Log the scan
       const { data: { user } } = await supabase.auth.getUser();
       const { error: insertError } = await supabase
         .from('event_logs')
@@ -172,13 +167,13 @@ export default function Verify() {
         return;
       }
 
-      // Fetch accommodation info
       const accommodation = await fetchAccommodation(foundProfile.id);
 
       playSuccessSound();
       setScanResult({
         status: 'success',
         userName: foundProfile.name,
+        userPhoto: foundProfile.avatar_url,
         uid: scannedUid,
         message: 'Entry Verified Successfully!',
         accommodation,
@@ -276,27 +271,43 @@ export default function Verify() {
                           initial={{ opacity: 0, scale: 0.9 }}
                           animate={{ opacity: 1, scale: 1 }}
                           exit={{ opacity: 0, scale: 0.9 }}
-                          className={`p-8 text-center ${
+                          className={`p-6 ${
                             scanResult.status === 'success' ? 'bg-primary/5' :
                             scanResult.status === 'duplicate' ? 'bg-secondary/10' : 'bg-destructive/5'
                           }`}
                         >
-                          {scanResult.status === 'success' && <CheckCircle2 className="w-20 h-20 text-primary mx-auto mb-4" />}
-                          {scanResult.status === 'duplicate' && <AlertTriangle className="w-20 h-20 text-secondary mx-auto mb-4" />}
-                          {scanResult.status === 'invalid' && <XCircle className="w-20 h-20 text-destructive mx-auto mb-4" />}
+                          {/* Large User Photo for Visual Verification */}
+                          {(scanResult.status === 'success' || scanResult.status === 'duplicate') && (
+                            <div className="flex flex-col items-center mb-4">
+                              <div className="w-32 h-32 rounded-full border-4 border-primary/30 bg-muted flex items-center justify-center overflow-hidden shadow-lg">
+                                {scanResult.userPhoto ? (
+                                  <img src={scanResult.userPhoto} alt={scanResult.userName} className="w-full h-full object-cover" />
+                                ) : (
+                                  <User className="w-14 h-14 text-muted-foreground" />
+                                )}
+                              </div>
+                              <p className="text-[10px] text-muted-foreground mt-2">Verify face matches the person</p>
+                            </div>
+                          )}
 
-                          {scanResult.userName && (
-                            <h3 className="font-heading text-xl font-bold text-foreground mb-1">{scanResult.userName}</h3>
-                          )}
-                          {scanResult.uid && (
-                            <p className="text-sm text-muted-foreground mb-2 font-mono">{scanResult.uid.slice(0, 8).toUpperCase()}</p>
-                          )}
-                          <p className={`text-sm font-medium ${
-                            scanResult.status === 'success' ? 'text-primary' :
-                            scanResult.status === 'duplicate' ? 'text-secondary' : 'text-destructive'
-                          }`}>
-                            {scanResult.message}
-                          </p>
+                          <div className="text-center">
+                            {scanResult.status === 'success' && <CheckCircle2 className="w-14 h-14 text-primary mx-auto mb-3" />}
+                            {scanResult.status === 'duplicate' && <AlertTriangle className="w-14 h-14 text-secondary mx-auto mb-3" />}
+                            {scanResult.status === 'invalid' && <XCircle className="w-14 h-14 text-destructive mx-auto mb-3" />}
+
+                            {scanResult.userName && (
+                              <h3 className="font-heading text-xl font-bold text-foreground mb-1">{scanResult.userName}</h3>
+                            )}
+                            {scanResult.uid && (
+                              <p className="text-sm text-muted-foreground mb-2 font-mono">{scanResult.uid.slice(0, 8).toUpperCase()}</p>
+                            )}
+                            <p className={`text-sm font-medium ${
+                              scanResult.status === 'success' ? 'text-primary' :
+                              scanResult.status === 'duplicate' ? 'text-secondary' : 'text-destructive'
+                            }`}>
+                              {scanResult.message}
+                            </p>
+                          </div>
 
                           {/* Accommodation Info */}
                           {scanResult.accommodation && (scanResult.status === 'success' || scanResult.status === 'duplicate') && (
@@ -321,13 +332,15 @@ export default function Verify() {
 
                           {!scanResult.accommodation && scanResult.status === 'success' && (
                             <div className="mt-4 p-3 bg-muted/50 border border-border rounded-lg">
-                              <p className="text-xs text-muted-foreground">No active accommodation found</p>
+                              <p className="text-xs text-muted-foreground text-center">No active accommodation found</p>
                             </div>
                           )}
 
-                          <Button onClick={resetAndResume} className="mt-6" variant="outline">
-                            <ScanLine className="w-4 h-4 mr-2" />Scan Next
-                          </Button>
+                          <div className="text-center mt-5">
+                            <Button onClick={resetAndResume} variant="outline">
+                              <ScanLine className="w-4 h-4 mr-2" />Scan Next
+                            </Button>
+                          </div>
                         </motion.div>
                       )}
                     </AnimatePresence>
