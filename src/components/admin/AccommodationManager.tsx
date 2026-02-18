@@ -205,23 +205,53 @@ export function AccommodationManager() {
     }
 
     try {
-      const ExcelJS = await import('exceljs');
-      const workbook = new ExcelJS.default.Workbook();
-      const arrayBuffer = await file.arrayBuffer();
-      await workbook.xlsx.load(arrayBuffer);
-      
-      const worksheet = workbook.worksheets[0];
-      if (!worksheet) {
-        toast({ title: 'No worksheet found', variant: 'destructive' });
+      // Parse file into a 2D array of rows
+      let rows: string[][] = [];
+      const isCSV = file.name.toLowerCase().endsWith('.csv');
+
+      if (isCSV) {
+        const text = await file.text();
+        // Parse CSV: handle quoted fields with commas
+        rows = text.split(/\r?\n/).filter(line => line.trim()).map(line => {
+          const cells: string[] = [];
+          let current = '';
+          let inQuotes = false;
+          for (let i = 0; i < line.length; i++) {
+            const ch = line[i];
+            if (ch === '"') { inQuotes = !inQuotes; continue; }
+            if (ch === ',' && !inQuotes) { cells.push(current.trim()); current = ''; continue; }
+            current += ch;
+          }
+          cells.push(current.trim());
+          return cells;
+        });
+      } else {
+        const ExcelJS = await import('exceljs');
+        const workbook = new ExcelJS.default.Workbook();
+        const arrayBuffer = await file.arrayBuffer();
+        await workbook.xlsx.load(arrayBuffer);
+        const worksheet = workbook.worksheets[0];
+        if (!worksheet) {
+          toast({ title: 'No worksheet found', variant: 'destructive' });
+          return;
+        }
+        worksheet.eachRow({ includeEmpty: false }, (row) => {
+          const cells: string[] = [];
+          row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+            while (cells.length < colNumber - 1) cells.push('');
+            cells.push(String(cell.value || '').trim());
+          });
+          rows.push(cells);
+        });
+      }
+
+      if (rows.length < 2) {
+        toast({ title: 'File has no data rows', variant: 'destructive' });
         return;
       }
 
-      // Read headers from row 1
-      const headerRow = worksheet.getRow(1);
-      const headers: string[] = [];
-      headerRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
-        headers[colNumber] = String(cell.value || '').trim();
-      });
+      // Headers from first row
+      const headers = rows[0];
 
       // Identify columns
       const categoryIdx = headers.findIndex(h => /category/i.test(h));
@@ -229,7 +259,7 @@ export function AccommodationManager() {
       const addressIdx = headers.findIndex(h => /address/i.test(h));
       const feedingIdx = headers.findIndex(h => /feeding/i.test(h));
 
-      // Find date range columns: "Rooms (dd.mm.yy to dd.mm.yy)"
+      // Find date range columns
       const dateRangeColumns: { colIdx: number; from: string; to: string }[] = [];
       headers.forEach((h, idx) => {
         if (!h) return;
@@ -253,18 +283,16 @@ export function AccommodationManager() {
       const allRooms: typeof importPreview extends null ? never : NonNullable<typeof importPreview>['rooms'] = [];
       const summary: string[] = [];
 
-      // Process data rows
-      worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
-        if (rowNumber === 1) return; // skip header
+      // Process data rows (skip header at index 0)
+      for (let rowIdx = 1; rowIdx < rows.length; rowIdx++) {
+        const row = rows[rowIdx];
+        const hotelName = (row[hotelIdx] || '').trim();
+        if (!hotelName) continue;
 
-        const hotelName = String(row.getCell(hotelIdx + 1).value || '').trim();
-        if (!hotelName) return;
+        const address = addressIdx >= 0 ? (row[addressIdx] || '').trim() : '';
+        const category = categoryIdx >= 0 ? (row[categoryIdx] || '').trim() : '';
+        const feeding = feedingIdx >= 0 ? (row[feedingIdx] || '').trim() : '';
 
-        const address = addressIdx >= 0 ? String(row.getCell(addressIdx + 1).value || '').trim() : '';
-        const category = categoryIdx >= 0 ? String(row.getCell(categoryIdx + 1).value || '').trim() : '';
-        const feeding = feedingIdx >= 0 ? String(row.getCell(feedingIdx + 1).value || '').trim() : '';
-
-        // Get or create location
         let locationId = existingLocMap.get(hotelName.toLowerCase().trim());
         if (!locationId) {
           if (!newLocationsMap.has(hotelName.toLowerCase().trim())) {
@@ -275,10 +303,9 @@ export function AccommodationManager() {
 
         const prefix = generatePrefix(hotelName);
 
-        // Process each date range column
         for (const drc of dateRangeColumns) {
-          const cellValue = row.getCell(drc.colIdx + 1).value;
-          const numRooms = parseInt(String(cellValue || '0'));
+          const cellValue = row[drc.colIdx] || '0';
+          const numRooms = parseInt(cellValue);
           if (!numRooms || numRooms <= 0) continue;
 
           for (let i = 1; i <= numRooms; i++) {
@@ -296,7 +323,7 @@ export function AccommodationManager() {
 
           summary.push(`${hotelName}: ${numRooms} rooms (${drc.from} to ${drc.to})`);
         }
-      });
+      }
 
       if (allRooms.length === 0) {
         toast({ title: 'No rooms found in the file. Check format.', variant: 'destructive' });
@@ -553,7 +580,7 @@ export function AccommodationManager() {
                         <>
                           <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
                             <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                            <p className="text-sm text-muted-foreground mb-3">Upload Excel (.xlsx) file</p>
+                            <p className="text-sm text-muted-foreground mb-3">Upload Excel (.xlsx) or CSV (.csv) file</p>
                             <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv" onChange={handleAdvancedImport} className="hidden" />
                             <Button variant="outline" onClick={() => fileInputRef.current?.click()}>Choose File</Button>
                           </div>
