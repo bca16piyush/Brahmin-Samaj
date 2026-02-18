@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
-import { Building2, Bed, Users, Plus, Upload, Search, ArrowRightLeft, X, MapPin, CalendarIcon, Trash2, AlertTriangle, RotateCcw } from 'lucide-react';
+import { Building2, Bed, Users, Plus, Upload, Search, ArrowRightLeft, X, MapPin, CalendarIcon, Trash2, AlertTriangle, RotateCcw, Download } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -562,6 +562,32 @@ export function AccommodationManager() {
                     </div>
                   </DialogContent>
                 </Dialog>
+
+                {/* Export CSV */}
+                <Button size="sm" variant="outline" className="gap-2" onClick={() => {
+                  const csvRows = [['Room Number', 'Property', 'Status', 'AC Type', 'Capacity', 'Floor', 'Available From', 'Available To']];
+                  (filteredRooms || []).forEach((r: any) => {
+                    csvRows.push([
+                      r.room_number,
+                      r.accommodation_locations?.name || '',
+                      r.status || '',
+                      r.ac_type || '',
+                      String(r.capacity || ''),
+                      String(r.floor || ''),
+                      r.available_from || '',
+                      r.available_to || '',
+                    ]);
+                  });
+                  const csv = csvRows.map(row => row.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+                  const blob = new Blob([csv], { type: 'text/csv' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url; a.download = `room-inventory-${format(new Date(), 'yyyy-MM-dd')}.csv`; a.click();
+                  URL.revokeObjectURL(url);
+                  toast({ title: 'Exported', description: `${filteredRooms.length} rooms exported as CSV.` });
+                }}>
+                  <Download className="h-4 w-4" />Export CSV
+                </Button>
 
                 {/* Import Inventory Dialog */}
                 <Dialog open={showAdvancedImport} onOpenChange={(o) => { setShowAdvancedImport(o); if (!o) setImportPreview(null); }}>
