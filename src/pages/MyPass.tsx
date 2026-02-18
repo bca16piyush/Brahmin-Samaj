@@ -9,7 +9,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { User, ShieldCheck, Download, Bed, MapPin, Bell, CalendarDays, Camera, Upload } from 'lucide-react';
+import { User, ShieldCheck, Download, Bed, MapPin, Bell, CalendarDays, Camera, Upload, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useMyAllocation } from '@/hooks/useAccommodation';
 import { useUserNotifications } from '@/hooks/useUserNotifications';
@@ -109,7 +109,49 @@ function PhotoUploadGate({ onUploaded }: { onUploaded: () => void }) {
   );
 }
 
-function PassCard({ profile, allocation }: { profile: any; allocation: any }) {
+function ChangePhotoButton({ onChanged }: { onChanged: () => void }) {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [uploading, setUploading] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    if (!file.type.startsWith('image/') || file.size > 5 * 1024 * 1024) {
+      toast({ title: 'Invalid file. Use JPG/PNG under 5MB.', variant: 'destructive' });
+      return;
+    }
+    setUploading(true);
+    try {
+      const ext = file.name.split('.').pop();
+      const path = `${user.id}/avatar.${ext}`;
+      const { error: uploadError } = await supabase.storage.from('verification-docs').upload(path, file, { upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage.from('verification-docs').getPublicUrl(path);
+      const { error: updateError } = await supabase.from('profiles').update({ avatar_url: urlData.publicUrl + '?t=' + Date.now() }).eq('id', user.id);
+      if (updateError) throw updateError;
+      toast({ title: 'Photo updated!' });
+      onChanged();
+    } catch (err: any) {
+      toast({ title: 'Upload failed', description: err.message, variant: 'destructive' });
+    }
+    setUploading(false);
+    if (inputRef.current) inputRef.current.value = '';
+  };
+
+  return (
+    <>
+      <input ref={inputRef} type="file" accept="image/*" onChange={handleChange} className="hidden" />
+      <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground" onClick={() => inputRef.current?.click()} disabled={uploading}>
+        <RefreshCw className={`w-3 h-3 ${uploading ? 'animate-spin' : ''}`} />
+        {uploading ? 'Updating...' : 'Change Photo'}
+      </Button>
+    </>
+  );
+}
+
+function PassCard({ profile, allocation, onPhotoChanged }: { profile: any; allocation: any; onPhotoChanged: () => void }) {
   const { isVerified } = useAuth();
   const { toast } = useToast();
   const cardRef = useRef<HTMLDivElement>(null);
@@ -156,6 +198,7 @@ function PassCard({ profile, allocation }: { profile: any; allocation: any }) {
               <User className="w-10 h-10 text-muted-foreground" />
             )}
           </div>
+          <ChangePhotoButton onChanged={onPhotoChanged} />
           <div className="text-center">
             <h3 className="font-heading text-xl font-bold text-foreground">{profile.name}</h3>
             <div className="flex items-center justify-center gap-2 mt-1">
@@ -219,9 +262,9 @@ function PassCard({ profile, allocation }: { profile: any; allocation: any }) {
           <p className="text-accent-foreground text-xs font-medium">महायज्ञ • Mahayagya Community</p>
         </div>
       </Card>
-      <div className="mt-6 flex justify-center">
+      <div className="mt-6 flex justify-center gap-3">
         <Button onClick={downloadAsPDF} className="bg-gradient-saffron text-primary-foreground gap-2">
-          <Download className="w-4 h-4" />Download Pass (PDF)
+          <Download className="w-4 h-4" />Download Pass
         </Button>
       </div>
     </>
@@ -262,7 +305,7 @@ export default function MyPass() {
             <PhotoUploadGate onUploaded={refreshProfile} />
           ) : (
             <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="flex flex-col items-center">
-              <PassCard profile={profile} allocation={allocation} />
+              <PassCard profile={profile} allocation={allocation} onPhotoChanged={refreshProfile} />
 
               {notifications && notifications.length > 0 && (
                 <div className="mt-8 w-full max-w-md">
